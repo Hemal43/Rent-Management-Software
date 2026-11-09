@@ -2,7 +2,7 @@
 // ભાડા વ્યવસ્થાપક (Rent Manager) - External Script (app.js)
 // =========================================================
 // In-memory data store with localStorage backup
-    const STORAGE_KEY = 'rent_manager_data_jagdishbhai_v3';
+    const STORAGE_KEY = 'rent_manager_data_jagdishbhai_v20';
 
     // Default sample data in Gujarati with Owner Profile & Partner Registry (v5.0)
     const defaultData = {
@@ -225,8 +225,9 @@
         // Auto-clean raw spreadsheet URL if user previously stored it as webhook
         if (appData && appData.settings && appData.settings.googleSheetUrl && appData.settings.googleSheetUrl.includes('docs.google.com/spreadsheets')) {
           appData.settings.googleSheetUrl = '';
-          saveData();
         }
+        syncPartnersWithProperties();
+        saveData();
       } catch (e) {
         console.warn('localStorage read error:', e);
       }
@@ -398,6 +399,33 @@
     }
 
 
+    // Helper: Ensure all partners from properties & default registry are synchronized (v10.0)
+    function syncPartnersWithProperties() {
+      if (!Array.isArray(appData.partners)) appData.partners = [];
+
+      // Ensure primary default partners are always present
+      if (!appData.partners.some(p => p.name === 'વિનુભાઈ દુધાત')) {
+        appData.partners.push({ id: 'part-vinubhai', name: 'વિનુભાઈ દુધાત', mobile: '9979112763' });
+      }
+      if (!appData.partners.some(p => p.name === 'જગદીશભાઈ દુધાત')) {
+        appData.partners.unshift({ id: 'part-jagdishbhai', name: 'જગદીશભાઈ દુધાત', mobile: '9723339384' });
+      }
+
+      // Automatically scan all properties and add any partner named in properties
+      if (Array.isArray(appData.properties)) {
+        appData.properties.forEach(pr => {
+          if (pr.isPartnership) {
+            if (pr.p1Name && !appData.partners.some(p => p.name === pr.p1Name)) {
+              appData.partners.push({ id: 'part-' + Date.now(), name: pr.p1Name, mobile: pr.p1Name === 'વિનુભાઈ દુધાત' ? '9979112763' : '' });
+            }
+            if (pr.p2Name && !appData.partners.some(p => p.name === pr.p2Name)) {
+              appData.partners.push({ id: 'part-' + Date.now() + '2', name: pr.p2Name, mobile: pr.p2Name === 'વિનુભાઈ દુધાત' ? '9979112763' : '' });
+            }
+          }
+        });
+      }
+    }
+
     // Helper: Compute unified Owner & Partner net profit (100% Self-Owned + Partnership Share - v7.0)
     function computeDynamicPartnerProfits(filterFn) {
       const totals = {};
@@ -492,8 +520,9 @@
       };
     }
 
-    // RENDER: Partners Directory & Owner Profile (100% Self + 50% Partnership Combined - v7.0)
+    // RENDER: Partners Directory & Owner Profile (100% Self + 50% Partnership Combined - v10.0)
     function renderPartners() {
+      syncPartnersWithProperties();
       if (!appData.owner) {
         appData.owner = { name: 'જગદીશભાઈ દુધાત', mobile: '9723339384' };
       }
@@ -587,7 +616,20 @@
       const monthProfits = computeDynamicPartnerProfits(t => t.month === curMonth);
       const allTimeProfits = computeDynamicPartnerProfits();
 
-      list.innerHTML = appData.partners.map(p => {
+      // Separate other partners from owner
+      const otherPartners = appData.partners.filter(p => p.name !== ownerName);
+
+      if (otherPartners.length === 0) {
+        list.innerHTML = `
+          <div class="bg-white p-6 rounded-2xl text-center text-xs text-slate-400 border border-slate-200/80 space-y-2">
+            <p>હાલમાં કોઈ અન્ય પાર્ટનર નથી.</p>
+            <button type="button" onclick="openAddPartner()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-xl font-bold text-xs shadow-sm">+ નવો પાર્ટનર ઉમેરો</button>
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = otherPartners.map(p => {
         // Find properties linked to this partner
         const linkedProps = appData.properties.filter(prop => 
           prop.isPartnership && (prop.p1Name === p.name || prop.p2Name === p.name)
@@ -595,6 +637,7 @@
 
         const pBreakdown = getPersonDetailedBreakdown(p.name);
         const totalNet = pBreakdown.totalNet;
+        const mNet = monthProfits[p.name] || 0;
 
         return `
           <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 space-y-3">
@@ -612,8 +655,8 @@
                   </p>
                 </div>
               </div>
-              <span class="text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200">
-                પાર્ટનર
+              <span class="text-xs font-bold ${p.name === ownerName ? 'text-amber-800 bg-amber-50 border-amber-200' : 'text-indigo-700 bg-indigo-50 border-indigo-200'} px-2.5 py-1 rounded-full border">
+                ${p.name === ownerName ? '👑 માલિક & પાર્ટનર' : '🤝 પાર્ટનર'}
               </span>
             </div>
 
@@ -674,12 +717,64 @@
       document.getElementById('owner-mobile-input').value = appData.owner.mobile || '';
       document.getElementById('modal-owner').classList.remove('hidden');
     };
-    // Open Add Partner Modal (Only Name & Mobile)
+    // Open Add Partner Modal (v16.0)
     window.openAddPartner = function() {
-      document.getElementById('modal-partner-title').textContent = 'નવો પાર્ટનર ઉમેરો';
-      document.getElementById('partner-edit-id').value = '';
-      document.getElementById('form-partner').reset();
-      document.getElementById('modal-partner').classList.remove('hidden');
+      const modal = document.getElementById('modal-partner');
+      if (modal) {
+        document.getElementById('modal-partner-title').textContent = 'નવો પાર્ટનર ઉમેરો';
+        document.getElementById('partner-edit-id').value = '';
+        document.getElementById('partner-name').value = '';
+        document.getElementById('partner-mobile').value = '';
+        modal.classList.remove('hidden');
+      }
+    };
+
+    window.closePartnerModal = function() {
+      const modal = document.getElementById('modal-partner');
+      if (modal) modal.classList.add('hidden');
+    };
+
+    // Robust Form Submit Handler for Partner Modal
+    function handlePartnerFormSubmit(e) {
+    window.handlePartnerFormSubmit = handlePartnerFormSubmit;
+      if (e) e.preventDefault();
+      const editId = document.getElementById('partner-edit-id').value;
+      const name = document.getElementById('partner-name').value.trim();
+      const mobile = document.getElementById('partner-mobile').value.trim();
+
+      if (!name) {
+        showToast('કૃપા કરીને પાર્ટનરનું નામ લખો!', 'error');
+        return;
+      }
+      if (!Array.isArray(appData.partners)) appData.partners = [];
+
+      if (editId) {
+        const idx = appData.partners.findIndex(p => p.id === editId);
+        if (idx !== -1) {
+          const oldName = appData.partners[idx].name;
+          appData.partners[idx] = { ...appData.partners[idx], name, mobile };
+          appData.properties.forEach(pr => {
+            if (pr.p1Name === oldName) pr.p1Name = name;
+            if (pr.p2Name === oldName) pr.p2Name = name;
+          });
+        }
+        showToast('પાર્ટનર વિગતો અપડેટ થઈ!', 'success');
+      } else {
+        const newPart = {
+          id: 'part-' + Date.now(),
+          name,
+          mobile
+        };
+        appData.partners.push(newPart);
+        showToast('નવો પાર્ટનર સફળતાપૂર્વક ઉમેરાયો!', 'success');
+      }
+
+      saveData();
+      populatePartnerDropdowns();
+      renderPartners();
+      renderDashboard();
+      renderReports();
+      closePartnerModal();
     };
 
     // Edit Partner Modal (Only Name & Mobile)
@@ -797,11 +892,10 @@
 
     // Populate Partner Dropdowns across the App (Property Modal & Report Filter)
     function populatePartnerDropdowns() {
+      syncPartnersWithProperties();
       const p1Select = document.getElementById('prop-p1-select');
       const p2Select = document.getElementById('prop-p2-select');
       const repPartnerSelect = document.getElementById('report-partner-select');
-
-      if (!Array.isArray(appData.partners)) appData.partners = [];
 
       let partnerOpts = appData.partners.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
       if (!partnerOpts) {
@@ -811,15 +905,19 @@
       if (p1Select) p1Select.innerHTML = partnerOpts;
       if (p2Select) p2Select.innerHTML = partnerOpts;
 
-      // Populate Report Filter Dropdown with Owner + Partners (v5.0)
+      // Populate Report Filter Dropdown with Owner (Once) + Other Partners (v16.0)
       if (repPartnerSelect) {
         const currentVal = repPartnerSelect.value || 'ALL';
-        const ownerName = (appData.owner && appData.owner.name) || 'મુખ્ય માલિક';
+        const ownerName = (appData.owner && appData.owner.name) || 'જગદીશભાઈ દુધાત';
+        // Filter out owner so owner name NEVER shows twice!
+        const otherPartners = appData.partners.filter(p => p.name !== ownerName);
+
         let repOpts = `<option value="ALL">બધા પાર્ટનર્સ & માલિક (All)</option>` +
-          `<option value="OWNER_SELF">👑 ${ownerName} (૧૦૦% સ્વતંત્ર માલિકી)</option>` +
-          appData.partners.map(p => `<option value="${p.name}">🤝 ${p.name}</option>`).join('');
+          `<option value="OWNER_TOTAL">👑 ${ownerName} (માલિક - કુલ હિસાબ)</option>` +
+          otherPartners.map(p => `<option value="${p.name}">🤝 ${p.name} (પાર્ટનર)</option>`).join('');
         repPartnerSelect.innerHTML = repOpts;
-        repPartnerSelect.value = currentVal;
+        if (currentVal === 'OWNER_SELF') repPartnerSelect.value = 'OWNER_TOTAL';
+        else repPartnerSelect.value = currentVal;
       }
     }
     // RENDER: Properties List
@@ -1134,11 +1232,28 @@
               // ALL COMBINED (Partnership + Self-Owned)
               if (t.type === 'income') effectiveIncome = t.amount;
               else effectiveExpense = t.amount;
-            } else if (selectedPartner === 'OWNER_SELF') {
-              // ONLY 100% SELF-OWNED PROPERTIES CALCULATION
-              if (prop && (!prop.isPartnership || prop.p1Name === prop.p2Name)) {
-                if (t.type === 'income') effectiveIncome = t.amount;
-                else effectiveExpense = t.amount;
+            } else if (selectedPartner === 'OWNER_TOTAL' || selectedPartner === 'OWNER_SELF') {
+              // OWNER FULL CALCULATION (100% Self-Owned + Partnership Share)
+              if (prop) {
+                if (!prop.isPartnership || prop.p1Name === prop.p2Name) {
+                  if (t.type === 'income') effectiveIncome = t.amount;
+                  else effectiveExpense = t.amount;
+                } else {
+                  const s1 = (t.p1Share !== undefined && t.p2Share !== undefined && (t.p1Share + t.p2Share === t.amount))
+                    ? t.p1Share
+                    : Math.round((t.amount * (prop.p1Share || 50)) / 100);
+                  const s2 = (t.p1Share !== undefined && t.p2Share !== undefined && (t.p1Share + t.p2Share === t.amount))
+                    ? t.p2Share
+                    : (t.amount - s1);
+                  if (prop.p1Name === ownerName) {
+                    if (t.type === 'income') effectiveIncome += s1;
+                    else effectiveExpense += s1;
+                  }
+                  if (prop.p2Name === ownerName) {
+                    if (t.type === 'income') effectiveIncome += s2;
+                    else effectiveExpense += s2;
+                  }
+                }
               }
             } else {
               // SPECIFIC PERSON FILTER (Includes their 100% Self-Owned + Partnership Share!)
@@ -1198,13 +1313,13 @@
             </div>
           `).join('');
         }
-      } else if (selectedPartner === 'OWNER_SELF') {
-        const ownerName = (appData.owner && appData.owner.name) || 'મુખ્ય માલિક';
+      } else if (selectedPartner === 'OWNER_TOTAL' || selectedPartner === 'OWNER_SELF') {
+        const ownerName = (appData.owner && appData.owner.name) || 'જગદીશભાઈ દુધાત';
         repPartnersDiv.innerHTML = `
           <div class="col-span-2 bg-gradient-to-r from-indigo-900 to-slate-900 p-3 rounded-xl border border-indigo-700 flex items-center justify-between">
             <div>
               <span class="text-amber-300 text-xs font-bold block flex items-center gap-1">👑 ${ownerName}</span>
-              <span class="text-[11px] text-indigo-200">૧૦૦% સ્વતંત્ર માલિકી પ્રોપર્ટીનો વાર્ષિક નફો (${selectedYear})</span>
+              <span class="text-[11px] text-indigo-200">માલિક કુલ સંયુક્ત નફો (૧૦૦% સ્વતંત્ર + ભાગીદારી ભાગ) - ${selectedYear}</span>
             </div>
             <div class="text-right">
               <span class="text-base font-extrabold text-emerald-300">${fmt(annualNet)}</span>
@@ -1306,39 +1421,92 @@
       });
     }
 
-    // Google Sheets Sync (Silent & Safe - No intrusive error toasts on entry)
-    async function syncToGoogleSheets(transaction) {
-      const url = (appData.settings && appData.settings.googleSheetUrl || '').trim();
-      // Only attempt network sync if a valid Google Apps Script Web App URL is configured
-      if (!url || !url.includes('script.google.com')) {
-        return; // Entry is safely saved in local storage without any error
+    // Print Full Report directly from JSON Data (v8.0)
+    function printFullReport() {
+      const ownerName = (appData.owner && appData.owner.name) || 'જગદીશભાઈ દુધાત';
+      const ownerBreak = getPersonDetailedBreakdown(ownerName);
+      
+      let printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        window.print();
+        return;
       }
 
-      const prop = appData.properties.find(p => p.id === transaction.propertyId);
-      const tenant = appData.tenants.find(t => t.id === transaction.tenantId) || appData.tenants.find(t => t.propertyId === transaction.propertyId);
+      let txRows = appData.transactions.map(t => {
+        const prop = appData.properties.find(p => p.id === t.propertyId);
+        const tenant = appData.tenants.find(x => x.id === t.tenantId);
+        const isInc = t.type === 'income';
+        return `
+          <tr>
+            <td style="padding:6px;border:1px solid #ddd;">${t.date}</td>
+            <td style="padding:6px;border:1px solid #ddd;">${t.month}</td>
+            <td style="padding:6px;border:1px solid #ddd;font-weight:bold;color:${isInc ? '#059669' : '#dc2626'};">${isInc ? 'આવક (ભાડું)' : 'ખર્ચ (' + (t.category||'') + ')'}</td>
+            <td style="padding:6px;border:1px solid #ddd;">${prop ? prop.name : '-'}</td>
+            <td style="padding:6px;border:1px solid #ddd;">${tenant ? tenant.name : '-'}</td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:right;font-weight:bold;">${fmt(t.amount)}</td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:right;">${fmt(t.p1Share)}</td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:right;">${fmt(t.p2Share)}</td>
+            <td style="padding:6px;border:1px solid #ddd;">${t.paymentMode||'-'}</td>
+          </tr>
+        `;
+      }).join('');
 
-      const payload = {
-        ...transaction,
-        property: prop ? prop.name : '-',
-        tenant: (transaction.type === 'income' && tenant) ? tenant.name : '-',
-        p1Share: transaction.p1Share || 0,
-        p2Share: transaction.p2Share || 0,
-        p1_share: transaction.p1Share || 0,
-        p2_share: transaction.p2Share || 0
-      };
+      let htmlDoc = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>ભાડા વ્યવસ્થાપક - સંપૂર્ણ વાર્ષિક હિસાબ રિપોર્ટ</title>
+          <style>
+            body { font-family: sans-serif; padding: 20px; color: #333; }
+            h1, h2 { margin-bottom: 5px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
+            th { background: #4338ca; color: white; padding: 8px; border: 1px solid #4338ca; text-align: left; }
+            .kpi-box { display: flex; gap: 15px; margin: 15px 0; }
+            .kpi { padding: 10px 15px; border-radius: 8px; background: #f3f4f6; border: 1px solid #e5e7eb; font-size: 13px; }
+            @media print { button { display: none; } }
+          </style>
+        </head>
+        <body>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <h1 style="color:#4338ca;">🏢 ભાડા વ્યવસ્થાપક - સંપૂર્ણ હિસાબ રિપોર્ટ</h1>
+              <p style="margin:0;color:#666;">મુખ્ય માલિક: <strong>${ownerName}</strong> | તારીખ: ${new Date().toLocaleDateString('gu-IN')}</p>
+            </div>
+            <button onclick="window.print()" style="padding:10px 20px;background:#4338ca;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">🖨️ પ્રિન્ટ / PDF ડાઉનલોડ</button>
+          </div>
 
-      try {
-        await fetch(url, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        });
-        showToast('✅ Google Sheet માં એન્ટ્રી ઓટો-અપડેટ થઈ ગઈ!', 'success');
-      } catch (e) {
-        console.warn('Sync failed (offline):', e);
-        showToast('Google Sheet સિંક નિષ્ફળ (ઓફલાઇન સેવ થયું)', 'error');
-      }
+          <div class="kpi-box">
+            <div class="kpi">કુલ ભાડું આવક: <strong style="color:#059669;">${document.getElementById('kpi-total-income').textContent}</strong></div>
+            <div class="kpi">કુલ ખર્ચ: <strong style="color:#dc2626;">${document.getElementById('kpi-total-expense').textContent}</strong></div>
+            <div class="kpi">ચોખ્ખો નફો: <strong style="color:#4338ca;">${document.getElementById('kpi-net-profit').textContent}</strong></div>
+            <div class="kpi">જગદીશભાઈ કુલ ભાગ: <strong>${fmt(ownerBreak.totalNet)}</strong></div>
+          </div>
+
+          <h2>📋 તમામ વ્યવહારોની વિગત (Transactions):</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>તારીખ</th>
+                <th>મહિનો</th>
+                <th>પ્રકાર / કેટેગરી</th>
+                <th>પ્રોપર્ટી</th>
+                <th>ભાડુઆત</th>
+                <th style="text-align:right;">રકમ</th>
+                <th style="text-align:right;">જગદીશભાઈ</th>
+                <th style="text-align:right;">વિનુભાઈ</th>
+                <th>માધ્યમ</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${txRows}
+            </tbody>
+          </table>
+        </body>
+        </html>
+      `;
+
+      printWindow.document.write(htmlDoc);
+      printWindow.document.close();
     }
 
     // Open Rent Receipt Modal (v2.0)
@@ -1535,7 +1703,7 @@
 
         appData.transactions.unshift(newTx);
         saveData();
-        syncToGoogleSheets(newTx);
+        
 
         showToast(`${type === 'income' ? 'ભાડા' : 'ખર્ચ'}ની એન્ટ્રી સફળતાપૂર્વક થઈ!`, 'success');
 
@@ -1694,165 +1862,89 @@
       // Export CSV Button
       document.getElementById('btn-export-csv').addEventListener('click', exportToCSV);
 
-      // Google Sheet Settings
-      const sheetUrlInput = document.getElementById('settings-sheet-url');
-      if (appData.settings.googleSheetUrl) {
-        sheetUrlInput.value = appData.settings.googleSheetUrl;
-      }
-      document.getElementById('btn-save-sheet-url').addEventListener('click', () => {
-        const val = sheetUrlInput.value.trim();
-        appData.settings.googleSheetUrl = val;
-        saveData();
-        if (val.includes('docs.google.com/spreadsheets')) {
-          showToast('⚠️ આ સામાન્ય Sheet લિંક છે! ઓટો-એન્ટ્રી માટે Apps Script (script.google.com/.../exec) URL નાખો.', 'error');
-        } else {
-          showToast('✅ Google Apps Script Web App URL સેવ થઈ ગયું!', 'success');
-        }
-      });
+      // Save Partner Form Submit Listener (v15.0)
+      const formPartner = document.getElementById('form-partner');
+      if (formPartner) {
+        formPartner.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const editId = document.getElementById('partner-edit-id').value;
+          const name = document.getElementById('partner-name').value.trim();
+          const mobile = document.getElementById('partner-mobile').value.trim();
 
-      // Sync All Now
-      document.getElementById('btn-sync-all-sheets').addEventListener('click', async () => {
-        if (!appData.settings.googleSheetUrl) {
-          showToast('પહેલા Google Sheet Webhook URL ઉમેરો!', 'error');
-          return;
-        }
-        showToast('સિંક શરૂ થઈ રહ્યું છે...', 'success');
-        try {
-          for (let tx of appData.transactions) {
-            await syncToGoogleSheets(tx);
+          if (!name) return;
+          if (!Array.isArray(appData.partners)) appData.partners = [];
+
+          if (editId) {
+            const idx = appData.partners.findIndex(p => p.id === editId);
+            if (idx !== -1) {
+              const oldName = appData.partners[idx].name;
+              appData.partners[idx] = { ...appData.partners[idx], name, mobile };
+              appData.properties.forEach(pr => {
+                if (pr.p1Name === oldName) pr.p1Name = name;
+                if (pr.p2Name === oldName) pr.p2Name = name;
+              });
+            }
+            showToast('પાર્ટનર વિગતો અપડેટ થઈ!', 'success');
+          } else {
+            const newPart = {
+              id: 'part-' + Date.now(),
+              name,
+              mobile
+            };
+            appData.partners.push(newPart);
+            showToast('નવો પાર્ટનર સફળતાપૂર્વક ઉમેરાયો!', 'success');
           }
-          showToast('બધી એન્ટ્રીઓ સફળતાપૂર્વક સિંક થઈ ગઈ!', 'success');
-        } catch (e) {
-          showToast('સિંક દરમિયાન ભૂલ આવી', 'error');
-        }
-      });
 
-      // Copy Apps Script Code
-      document.getElementById('btn-copy-script-code').addEventListener('click', () => {
-        const code = document.getElementById('script-code-block').innerText;
-        if (navigator.clipboard) {
-          navigator.clipboard.writeText(code).then(() => {
-            showToast('Apps Script કોડ કોપી થઈ ગયો!', 'success');
-          }).catch(() => {
-            fallbackCopy(code);
-          });
-        } else {
-          fallbackCopy(code);
-        }
-      });
-
-      function fallbackCopy(text) {
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        showToast('Apps Script કોડ કોપી થઈ ગયો!', 'success');
-      }
-
-      // Owner Profile Modal Listeners (v5.0)
-      document.getElementById('btn-close-owner-modal').addEventListener('click', () => {
-        document.getElementById('modal-owner').classList.add('hidden');
-      });
-
-      document.getElementById('form-owner').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const name = document.getElementById('owner-name-input').value.trim();
-        const mobile = document.getElementById('owner-mobile-input').value.trim();
-        if (name) {
-          appData.owner = { name, mobile };
           saveData();
           populatePartnerDropdowns();
           renderPartners();
-          renderProperties();
           renderDashboard();
           renderReports();
-          showToast('માલિક પ્રોફાઇલ સફળતાપૂર્વક સેવ થઈ ગઈ!', 'success');
-          document.getElementById('modal-owner').classList.add('hidden');
-        }
-      });
+          updateSettingsStats();
+          document.getElementById('modal-partner').classList.add('hidden');
+        });
+      }
 
-      // Open & Close Partner Modal Listeners
-      document.getElementById('btn-open-add-partner').addEventListener('click', openAddPartner);
-      document.getElementById('btn-close-partner-modal').addEventListener('click', () => {
-        document.getElementById('modal-partner').classList.add('hidden');
-      });
-
-      // Save Partner Form Submit (Only Name & Mobile Number)
-      document.getElementById('form-partner').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const editId = document.getElementById('partner-edit-id').value;
-        const name = document.getElementById('partner-name').value.trim();
-        const mobile = document.getElementById('partner-mobile').value.trim();
-
-        if (!Array.isArray(appData.partners)) appData.partners = [];
-
-        if (editId) {
-          const idx = appData.partners.findIndex(p => p.id === editId);
-          if (idx !== -1) {
-            const oldName = appData.partners[idx].name;
-            appData.partners[idx] = { ...appData.partners[idx], name, mobile };
-            // Update property partner references if renamed
-            appData.properties.forEach(pr => {
-              if (pr.p1Name === oldName) pr.p1Name = name;
-              if (pr.p2Name === oldName) pr.p2Name = name;
-            });
-          }
-          showToast('પાર્ટનર વિગતો અપડેટ થઈ!', 'success');
-        } else {
-          const newPart = {
-            id: 'part-' + Date.now(),
-            name, mobile
-          };
-          appData.partners.push(newPart);
-          showToast('નવો પાર્ટનર સફળતાપૂર્વક ઉમેરાયો!', 'success');
-        }
-
-        saveData();
-        populatePartnerDropdowns();
-        renderPartners();
-        renderDashboard();
-        renderReports();
-        document.getElementById('modal-partner').classList.add('hidden');
-      });
-
-      // Confirm Delete Property Modal Listeners
-      document.getElementById('btn-cancel-delete-prop').addEventListener('click', () => {
-        document.getElementById('modal-confirm-delete-property').classList.add('hidden');
-      });
-      document.getElementById('btn-confirm-delete-prop').addEventListener('click', () => {
-        const propId = document.getElementById('delete-target-prop-id').value;
-        if (propId) {
-          executePropertyDeletion(propId);
-        }
-        document.getElementById('modal-confirm-delete-property').classList.add('hidden');
-      });
-      document.getElementById('btn-modal-delete-property').addEventListener('click', () => {
-        const propId = document.getElementById('prop-edit-id').value;
-        if (propId) {
-          document.getElementById('modal-property').classList.add('hidden');
-          deleteProperty(propId);
-        }
-      });
-
-      // Partnership Checkbox Toggle in Property Modal
-      const partCheckbox = document.getElementById('prop-has-partnership');
-      if (partCheckbox) {
-        partCheckbox.addEventListener('change', (e) => {
-          const partContainer = document.getElementById('prop-partnership-fields-container');
-          const partBadge = document.getElementById('prop-partnership-status-badge');
-          if (e.target.checked) {
-            partContainer.classList.remove('hidden');
-            partBadge.textContent = 'ભાગીદારી';
-            partBadge.className = 'text-[10px] font-semibold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-md border border-indigo-200';
-          } else {
-            partContainer.classList.add('hidden');
-            partBadge.textContent = 'સ્વતંત્ર (૧૦૦%)';
-            partBadge.className = 'text-[10px] font-semibold text-slate-500 bg-white/80 px-2 py-0.5 rounded-md border border-slate-200';
+      // Save Owner Form Submit Listener (v15.0)
+      const formOwner = document.getElementById('form-owner');
+      if (formOwner) {
+        formOwner.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const name = document.getElementById('owner-name-input').value.trim();
+          const mobile = document.getElementById('owner-mobile-input').value.trim();
+          if (name) {
+            appData.owner = { name, mobile };
+            saveData();
+            populatePartnerDropdowns();
+            renderPartners();
+            renderProperties();
+            renderDashboard();
+            renderReports();
+            showToast('મુખ્ય માલિક પ્રોફાઇલ અપડેટ થઈ!', 'success');
+            document.getElementById('modal-owner').classList.add('hidden');
           }
         });
       }
+
+      // Update JSON Stats in Settings Tab (v15.0)
+      function updateSettingsStats() {
+        const pCount = document.getElementById('stat-props-count');
+        const tCount = document.getElementById('stat-tenants-count');
+        const txCount = document.getElementById('stat-txs-count');
+        const partCount = document.getElementById('stat-partners-count');
+        if (pCount) pCount.textContent = appData.properties.length;
+        if (tCount) tCount.textContent = appData.tenants.length;
+        if (txCount) txCount.textContent = appData.transactions.length;
+        if (partCount) partCount.textContent = (appData.partners || []).length;
+      }
+      updateSettingsStats();
+
+      // Print Full Report Button
+      const btnPrintFull = document.getElementById('btn-print-full-summary');
+      if (btnPrintFull) btnPrintFull.addEventListener('click', printFullReport);
+
+      const btnExportCsvSettings = document.getElementById('btn-export-csv-settings');
+      if (btnExportCsvSettings) btnExportCsvSettings.addEventListener('click', exportToCSV);
 
       // Receipt Modal Close & Print
       document.getElementById('btn-close-receipt').addEventListener('click', () => {
