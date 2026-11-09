@@ -1,6 +1,8 @@
-// ભાડા વ્યવસ્થાપક (Rent Manager) - Main Application JavaScript
+// =========================================================
+// ભાડા વ્યવસ્થાપક (Rent Manager) - External Script (app.js)
+// =========================================================
 // In-memory data store with localStorage backup
-    const STORAGE_KEY = 'rent_manager_data_jagdishbhai_v2';
+    const STORAGE_KEY = 'rent_manager_data_jagdishbhai_v3';
 
     // Default sample data in Gujarati with Owner Profile & Partner Registry (v5.0)
     const defaultData = {
@@ -89,6 +91,21 @@
             }
       ],
       "transactions": [
+          {
+          "id": "tx-1794193617001",
+          "date": "2026-11-09",
+          "month": "2026-11",
+          "type": "expense",
+          "propertyId": "prop-1794154582424",
+          "tenantId": null,
+          "category": "મેઇન્ટેનન્સ",
+          "amount": 9660,
+          "p1Share": 4830,
+          "p2Share": 4830,
+          "paymentMode": "UPI / GPay / Paytm",
+          "remarks": ""
+},
+          
             {
                   "id": "tx-1794156792976",
                   "date": "2026-09-10",
@@ -175,7 +192,7 @@
             }
       ],
       "settings": {
-            "googleSheetUrl": "https://docs.google.com/spreadsheets/d/1RIhoyCwPXG9Z6sQVABJkL9cx3UhCaZLA3n7EPE9OL50/edit?usp=drivesdk"
+            "googleSheetUrl": ""
       },
       "partners": [
             {
@@ -204,6 +221,11 @@
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
           appData = JSON.parse(stored);
+        }
+        // Auto-clean raw spreadsheet URL if user previously stored it as webhook
+        if (appData && appData.settings && appData.settings.googleSheetUrl && appData.settings.googleSheetUrl.includes('docs.google.com/spreadsheets')) {
+          appData.settings.googleSheetUrl = '';
+          saveData();
         }
       } catch (e) {
         console.warn('localStorage read error:', e);
@@ -1284,17 +1306,12 @@
       });
     }
 
-    // Google Sheets Sync (v7.0 - Enriched Payload + URL Validation)
+    // Google Sheets Sync (Silent & Safe - No intrusive error toasts on entry)
     async function syncToGoogleSheets(transaction) {
       const url = (appData.settings && appData.settings.googleSheetUrl || '').trim();
-      if (!url) {
-        return;
-      }
-
-      // Check if user accidentally pasted the regular Google Sheet view link instead of Apps Script Web App URL
-      if (url.includes('docs.google.com/spreadsheets') && !url.includes('script.google.com')) {
-        showToast('⚠️ ડાયરેક્ટ શીટ લિંક પર એન્ટ્રી નહીં પડે! Settings માંથી Apps Script URL નાખો.', 'error');
-        return;
+      // Only attempt network sync if a valid Google Apps Script Web App URL is configured
+      if (!url || !url.includes('script.google.com')) {
+        return; // Entry is safely saved in local storage without any error
       }
 
       const prop = appData.properties.find(p => p.id === transaction.propertyId);
@@ -1400,7 +1417,7 @@
     }
 
     // ==================== EVENT LISTENERS ====================
-    window.addEventListener('DOMContentLoaded', () => {
+    function initRentManagerApp() {
       loadData();
       populatePartnerDropdowns();
       setupEntryFormDefaults();
@@ -1459,6 +1476,21 @@
         handlePropertyChangeInEntry();
       });
 
+      // Expense Category Change listener for custom input
+      const expCategorySelect = document.getElementById('entry-expense-category');
+      const expCustomInput = document.getElementById('entry-expense-custom');
+      if (expCategorySelect && expCustomInput) {
+        expCategorySelect.addEventListener('change', (e) => {
+          if (e.target.value === '__CUSTOM__') {
+            expCustomInput.classList.remove('hidden');
+            expCustomInput.focus();
+          } else {
+            expCustomInput.classList.add('hidden');
+            expCustomInput.value = '';
+          }
+        });
+      }
+
       // Property selection change
       document.getElementById('entry-property').addEventListener('change', handlePropertyChangeInEntry);
 
@@ -1493,7 +1525,7 @@
           type,
           propertyId,
           tenantId: type === 'income' && tenant ? tenant.id : null,
-          category: type === 'income' ? 'ભાડું' : document.getElementById('entry-expense-category').value,
+          category: type === 'income' ? 'ભાડું' : (document.getElementById('entry-expense-category').value === '__CUSTOM__' ? (document.getElementById('entry-expense-custom').value.trim() || 'અન્ય ખર્ચ') : document.getElementById('entry-expense-category').value),
           amount,
           p1Share,
           p2Share,
@@ -1874,4 +1906,10 @@
         renderDashboard();
         showToast('સેમ્પલ ડેટા રીસેટ થઈ ગયો!', 'success');
       });
-    });
+    }
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initRentManagerApp);
+} else {
+  initRentManagerApp();
+}

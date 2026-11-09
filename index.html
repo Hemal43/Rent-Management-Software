@@ -233,7 +233,9 @@
               <option value="લાઈટ-પાણી બિલ">લાઈટ-પાણી બિલ (Electricity / Water)</option>
               <option value="દલાલી / કમિશન">દલાલી / કમિશન (Brokerage)</option>
               <option value="અન્ય ખર્ચ">અન્ય ખર્ચ (Other Miscellaneous)</option>
+              <option value="__CUSTOM__">+ અન્ય નવો ખર્ચ જાતે લખો...</option>
             </select>
+            <input type="text" id="entry-expense-custom" placeholder="ખર્ચનું નામ લખો (દા.ત. કલર કામ, પ્લમ્બિંગ)..." class="w-full text-sm px-3 py-2 rounded-xl border border-indigo-300 bg-indigo-50/50 mt-2 hidden font-medium">
           </div>
 
           <!-- Amount Field -->
@@ -479,7 +481,7 @@ function doPost(e) {
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var sheet = ss.getSheetByName("Transactions") || ss.insertSheet("Transactions");
   var data = JSON.parse(e.postData.contents);
-  var typeLabel = (data.type === "income") ? "આવક (Income)" : "ખર્ચ (Expense)";
+  var typeLabel = (data.type === "income") ? "આવક (ભાડું)" : ("ખર્ચ (" + (data.category || "અન્ય") + ")");
   var p1 = (data.p1Share !== undefined) ? data.p1Share : (data.p1_share || 0);
   var p2 = (data.p2Share !== undefined) ? data.p2Share : (data.p2_share || 0);
   sheet.appendRow([
