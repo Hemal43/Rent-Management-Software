@@ -2,7 +2,7 @@
 // ભાડા વ્યવસ્થાપક (Rent Manager) - External Script (app.js)
 // =========================================================
 // In-memory data store with localStorage backup
-    const STORAGE_KEY = 'rent_manager_data_jagdishbhai_v20';
+    const STORAGE_KEY = 'rent_manager_data_jagdishbhai_v25';
 
     // Default sample data in Gujarati with Owner Profile & Partner Registry (v5.0)
     const defaultData = {
@@ -215,19 +215,31 @@
     let appData = { ...defaultData };
     let chartInstance = null;
 
-    // Load from localStorage
-    function loadData() {
+    // Load from localStorage or external data.json file (v25.0)
+    async function loadData() {
       try {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
           appData = JSON.parse(stored);
-        }
-        // Auto-clean raw spreadsheet URL if user previously stored it as webhook
-        if (appData && appData.settings && appData.settings.googleSheetUrl && appData.settings.googleSheetUrl.includes('docs.google.com/spreadsheets')) {
-          appData.settings.googleSheetUrl = '';
+        } else {
+          // Fetch external data.json file from server if available
+          try {
+            const resp = await fetch('./data.json?t=' + Date.now());
+            if (resp.ok) {
+              const externalJson = await resp.json();
+              if (externalJson && Array.isArray(externalJson.properties)) {
+                appData = externalJson;
+              }
+            }
+          } catch (fetchErr) {
+            // Fallback to embedded defaultData when running via file://
+          }
         }
         syncPartnersWithProperties();
         saveData();
+        populatePartnerDropdowns();
+        setupEntryFormDefaults();
+        renderDashboard();
       } catch (e) {
         console.warn('localStorage read error:', e);
       }
@@ -258,7 +270,30 @@
       }, 3000);
     }
 
-    // Navigation Tab Switching
+    // Open & Close Hamburger Drawer Menu (v25.0)
+    window.openDrawerMenu = function() {
+      const drawer = document.getElementById('drawer-backdrop');
+      if (drawer) drawer.classList.remove('hidden');
+    };
+
+    window.closeDrawerMenu = function() {
+      const drawer = document.getElementById('drawer-backdrop');
+      if (drawer) drawer.classList.add('hidden');
+    };
+
+    // Helper: Download data.json directly
+    window.downloadDataJsonFile = function() {
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(appData, null, 2));
+      const dlAnchor = document.createElement('a');
+      dlAnchor.setAttribute('href', dataStr);
+      dlAnchor.setAttribute('download', 'data.json');
+      document.body.appendChild(dlAnchor);
+      dlAnchor.click();
+      dlAnchor.remove();
+      showToast('data.json ફાઇલ સફળતાપૂર્વક ડાઉનલોડ થઈ ગઈ!', 'success');
+    };
+
+    // Navigation Tab Switching (Updates Drawer Menu & Header Label)
     function switchTab(targetId) {
       document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
       const activeSec = document.getElementById(targetId);
@@ -266,13 +301,17 @@
 
       document.querySelectorAll('.nav-tab-btn').forEach(btn => {
         if (btn.getAttribute('data-target') === targetId) {
-          btn.classList.add('text-indigo-600');
-          btn.classList.remove('text-slate-400');
+          btn.classList.add('bg-indigo-50', 'text-indigo-700', 'font-bold');
+          btn.classList.remove('text-slate-700', 'font-semibold');
+
         } else {
-          btn.classList.remove('text-indigo-600');
-          btn.classList.add('text-slate-400');
+          btn.classList.remove('bg-indigo-50', 'text-indigo-700', 'font-bold');
+          btn.classList.add('text-slate-700', 'font-semibold');
         }
       });
+
+      // Automatically close drawer menu when a tab is selected
+      closeDrawerMenu();
 
       // Special re-renders when switching tabs
       if (targetId === 'tab-dashboard') renderDashboard();
@@ -1509,7 +1548,7 @@
       printWindow.document.close();
     }
 
-    // Open Rent Receipt Modal (v2.0)
+    // Open Rent Receipt Modal (v30.0 - Supports Image, PDF, and WhatsApp)
     window.openReceiptModal = function(txId) {
       const tx = appData.transactions.find(x => x.id === txId);
       if (!tx) return;
@@ -1520,18 +1559,246 @@
       const tenantName = tenant ? tenant.name : 'ભાડુઆત';
       const mobile = tenant ? tenant.mobile : '';
 
+      document.getElementById('current-receipt-tx-id').value = tx.id;
       document.getElementById('receipt-id-date').textContent = `રસીદ નં: #${tx.id.toUpperCase()} | તારીખ: ${tx.date}`;
       document.getElementById('receipt-prop').textContent = propName;
       document.getElementById('receipt-tenant').textContent = tenantName;
       document.getElementById('receipt-month').textContent = tx.month;
       document.getElementById('receipt-mode').textContent = tx.paymentMode;
       document.getElementById('receipt-amount').textContent = fmt(tx.amount);
-      document.getElementById('receipt-split-info').textContent = `ભાગીદારી: ${prop ? prop.p1Name : 'P1'} (${fmt(tx.p1Share)}) | ${prop ? prop.p2Name : 'P2'} (${fmt(tx.p2Share)})`;
 
-      const waMsg = `🧾 *ભાડા ચુકવણી રસીદ (Rent Receipt)*%0A-------------------------0A*રસીદ નં:* ${tx.id.toUpperCase()}%0A*તારીખ:* ${tx.date}%0A*પ્રોપર્ટી:* ${propName}%0A*ભાડુઆત:* ${tenantName}%0A*મહિનો:* ${tx.month}%0A*મળેલ રકમ:* ${fmt(tx.amount)}%0A*માધ્યમ:* ${tx.paymentMode}%0A-------------------------0Aઆભાર! ભાડું મળી ગયું છે.`;
+      if (prop && prop.isPartnership && prop.p1Name !== prop.p2Name) {
+        document.getElementById('receipt-split-info').textContent = `ભાગીદારી: ${prop.p1Name} (${fmt(tx.p1Share)}) | ${prop.p2Name} (${fmt(tx.p2Share)})`;
+      } else {
+        const ownerName = (appData.owner && appData.owner.name) || 'જગદીશભાઈ દુધાત';
+        document.getElementById('receipt-split-info').textContent = `માલિક: ${ownerName} (૧૦૦% સ્વતંત્ર)`;
+      }
+
+      const waMsg = `🧾 *ભાડા ચુકવણી રસીદ (Rent Receipt)*%0A-------------------------%0A*રસીદ નં:* ${tx.id.toUpperCase()}%0A*તારીખ:* ${tx.date}%0A*પ્રોપર્ટી:* ${propName}%0A*ભાડુઆત:* ${tenantName}%0A*મહિનો:* ${tx.month}%0A*મળેલ રકમ:* ${fmt(tx.amount)}%0A*માધ્યમ:* ${tx.paymentMode}%0A-------------------------%0Aઆભાર! આપનું ભાડું જમા થઈ ગયું છે.`;
       document.getElementById('btn-whatsapp-receipt').href = `https://wa.me/${mobile ? '91' + mobile : ''}?text=${waMsg}`;
 
       document.getElementById('modal-receipt').classList.remove('hidden');
+    };
+
+    // Generate High-Resolution PNG Receipt Image via HTML5 Canvas & Share/Download for WhatsApp (v30.0)
+    window.shareOrDownloadReceiptImage = async function() {
+      const txId = document.getElementById('current-receipt-tx-id').value;
+      const tx = appData.transactions.find(x => x.id === txId);
+      if (!tx) return;
+
+      const prop = appData.properties.find(p => p.id === tx.propertyId);
+      const tenant = appData.tenants.find(t => t.id === tx.tenantId) || appData.tenants.find(t => t.propertyId === tx.propertyId);
+      const ownerName = (appData.owner && appData.owner.name) || 'જગદીશભાઈ દુધાત';
+      const propName = prop ? prop.name : 'પ્રોપર્ટી';
+      const tenantName = tenant ? tenant.name : 'ભાડુઆત';
+
+      // Create high-DPI canvas (800 x 980)
+      const canvas = document.createElement('canvas');
+      canvas.width = 800;
+      canvas.height = 980;
+      const ctx = canvas.getContext('2d');
+
+      // Background
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, 800, 980);
+
+      // Card Container
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#c7d2fe';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.roundRect(40, 40, 720, 900, 24);
+      ctx.fill();
+      ctx.stroke();
+
+      // Top Header Banner inside Card
+      const grad = ctx.createLinearGradient(40, 40, 760, 200);
+      grad.addColorStop(0, '#4338ca');
+      grad.addColorStop(1, '#3730a3');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(40, 40, 720, 160, [24, 24, 0, 0]);
+      ctx.fill();
+
+      // Header Text
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 34px sans-serif';
+      ctx.fillText('🏢 ભાડા ચુકવણી રસીદ (RENT RECEIPT)', 400, 110);
+
+      ctx.fillStyle = '#e0e7ff';
+      ctx.font = '20px sans-serif';
+      ctx.fillText(`રસીદ નં: #${tx.id.toUpperCase()}  |  તારીખ: ${tx.date}`, 400, 155);
+
+      // Amount Highlight Box
+      ctx.fillStyle = '#ecfdf5';
+      ctx.strokeStyle = '#6ee7b7';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(80, 235, 640, 130, 16);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#047857';
+      ctx.font = 'bold 22px sans-serif';
+      ctx.fillText('મળેલ કુલ ભાડાની રકમ (PAID AMOUNT)', 400, 278);
+
+      ctx.fillStyle = '#059669';
+      ctx.font = 'bold 48px sans-serif';
+      ctx.fillText(fmt(tx.amount), 400, 338);
+
+      // Details Rows
+      const rows = [
+        ['પ્રોપર્ટી (Property):', propName],
+        ['ભાડુઆતનું નામ (Tenant):', tenantName],
+        ['ભાડાનો મહિનો (Rent Month):', tx.month],
+        ['ચુકવણી માધ્યમ (Payment Mode):', tx.paymentMode || 'UPI / Cash'],
+        ['માલિક / સંચાલક (Owner):', ownerName],
+        ['સ્થિતિ (Status):', '✓ ભાડું જમા (PAID)']
+      ];
+
+      ctx.textAlign = 'left';
+      let y = 430;
+      rows.forEach(([label, val]) => {
+        ctx.fillStyle = '#64748b';
+        ctx.font = '22px sans-serif';
+        ctx.fillText(label, 90, y);
+
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 23px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(String(val), 710, y);
+        ctx.textAlign = 'left';
+
+        // Divider line
+        ctx.strokeStyle = '#f1f5f9';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(85, y + 22);
+        ctx.lineTo(715, y + 22);
+        ctx.stroke();
+
+        y += 68;
+      });
+
+      // Footer Stamp
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#4338ca';
+      ctx.font = 'bold 22px sans-serif';
+      ctx.fillText('આભાર! આપનું ભાડું સફળતાપૂર્વક જમા થઈ ગયું છે.', 400, 875);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '16px sans-serif';
+      ctx.fillText('Generated via ભાડા વ્યવસ્થાપક (Rent Manager System)', 400, 910);
+
+      // Convert Canvas to Blob for Web Share API or Direct PNG Download
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const fileName = `Rent_Receipt_${tx.month}_${tenantName.replace(/\s+/g, '_')}.png`;
+        const file = new File([blob], fileName, { type: 'image/png' });
+
+        // If on mobile browser that supports sharing files directly to WhatsApp
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              title: 'ભાડા ચુકવણી રસીદ',
+              text: `${tenantName} - ${propName} (${tx.month}) ભાડા રસીદ`,
+              files: [file]
+            });
+            showToast('રસીદ ફોટો શેર માટે તૈયાર!', 'success');
+            return;
+          } catch (err) {
+            // Fallback to download if user cancels share sheet
+          }
+        }
+
+        // Download PNG directly
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
+        showToast('રસીદનો ફોટો (PNG) ડાઉનલોડ થઈ ગયો! હવે WhatsApp માં મોકલી શકો છો.', 'success');
+      }, 'image/png');
+    };
+
+    // Print / Save Clean Single Receipt PDF (v30.0)
+    window.printSingleReceiptPDF = function() {
+      const txId = document.getElementById('current-receipt-tx-id').value;
+      const tx = appData.transactions.find(x => x.id === txId);
+      if (!tx) {
+        window.print();
+        return;
+      }
+      const prop = appData.properties.find(p => p.id === tx.propertyId);
+      const tenant = appData.tenants.find(t => t.id === tx.tenantId) || appData.tenants.find(t => t.propertyId === tx.propertyId);
+      const ownerName = (appData.owner && appData.owner.name) || 'જગદીશભાઈ દુધાત';
+      const propName = prop ? prop.name : 'પ્રોપર્ટી';
+      const tenantName = tenant ? tenant.name : 'ભાડુઆત';
+
+      const w = window.open('', '_blank');
+      if (!w) {
+        window.print();
+        return;
+      }
+
+      w.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Rent_Receipt_${tx.month}_${tenantName}</title>
+          <style>
+            body { font-family: sans-serif; padding: 30px; background: #f8fafc; color: #0f172a; }
+            .receipt-card { max-width: 520px; margin: 0 auto; background: #fff; border: 2px solid #4338ca; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.06); }
+            .header { background: #4338ca; color: #fff; padding: 20px; text-align: center; }
+            .header h1 { margin: 0; font-size: 22px; }
+            .header p { margin: 6px 0 0; font-size: 13px; opacity: 0.9; }
+            .amount-box { background: #ecfdf5; border: 1px solid #6ee7b7; margin: 20px; padding: 15px; border-radius: 12px; text-align: center; }
+            .amount-box span { display: block; font-size: 12px; color: #047857; font-weight: bold; }
+            .amount-box strong { font-size: 28px; color: #059669; }
+            .rows { padding: 0 24px 20px; }
+            .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+            .row .lbl { color: #64748b; }
+            .row .val { font-weight: bold; color: #0f172a; }
+            .footer { background: #f8fafc; padding: 15px; text-align: center; font-size: 12px; color: #4338ca; font-weight: bold; border-top: 1px solid #e2e8f0; }
+            .actions { text-align: center; margin-top: 20px; }
+            .btn { padding: 10px 20px; background: #4338ca; color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+            @media print { body { background: #fff; padding: 0; } .actions { display: none; } }
+          </style>
+        </head>
+        <body>
+          <div class="receipt-card">
+            <div class="header">
+              <h1>🏢 ભાડા ચુકવણી રસીદ (Rent Receipt)</h1>
+              <p>રસીદ નં: #${tx.id.toUpperCase()} | તારીખ: ${tx.date}</p>
+            </div>
+            <div class="amount-box">
+              <span>મળેલ કુલ ભાડાની રકમ (Paid Amount)</span>
+              <strong>${fmt(tx.amount)}</strong>
+            </div>
+            <div class="rows">
+              <div class="row"><span class="lbl">પ્રોપર્ટી:</span><span class="val">${propName}</span></div>
+              <div class="row"><span class="lbl">ભાડુઆતનું નામ:</span><span class="val">${tenantName}</span></div>
+              <div class="row"><span class="lbl">ભાડાનો મહિનો:</span><span class="val">${tx.month}</span></div>
+              <div class="row"><span class="lbl">ચુકવણી માધ્યમ:</span><span class="val">${tx.paymentMode || 'UPI'}</span></div>
+              <div class="row"><span class="lbl">માલિક:</span><span class="val">${ownerName}</span></div>
+              <div class="row"><span class="lbl">સ્થિતિ:</span><span class="val" style="color:#059669;">✓ ભાડું જમા (Paid)</span></div>
+            </div>
+            <div class="footer">
+              આભાર! આપનું ભાડું સફળતાપૂર્વક જમા થઈ ગયું છે.
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn" onclick="window.print()">🖨️ PDF તરીકે સેવ / પ્રિન્ટ કરો</button>
+          </div>
+        </body>
+        </html>
+      `);
+      w.document.close();
+      setTimeout(() => { try { w.focus(); w.print(); } catch(e) {} }, 400);
     };
 
     // Delete Transaction (v2.0)
@@ -1950,20 +2217,47 @@
       document.getElementById('btn-close-receipt').addEventListener('click', () => {
         document.getElementById('modal-receipt').classList.add('hidden');
       });
-      document.getElementById('btn-print-receipt').addEventListener('click', () => {
-        window.print();
+
+
+      // JSON Backup Download (Saves as data.json - v25.0)
+      document.getElementById('btn-backup-json').addEventListener('click', () => {
+        downloadDataJsonFile();
       });
 
-      // JSON Backup Download (v2.0)
-      document.getElementById('btn-backup-json').addEventListener('click', () => {
-        const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(appData, null, 2));
-        const dlAnchor = document.createElement('a');
-        dlAnchor.setAttribute('href', dataStr);
-        dlAnchor.setAttribute('download', `rent_manager_backup_${new Date().toISOString().slice(0, 10)}.json`);
-        document.body.appendChild(dlAnchor);
-        dlAnchor.click();
-        dlAnchor.remove();
-        showToast('સંપૂર્ણ બેકઅપ ફાઇલ ડાઉનલોડ થઈ ગઈ!', 'success');
+      // Close Drawer or ANY Popup Modal when clicking outside (on the dark backdrop) or pressing Escape (v25.0)
+      const allOverlayIds = [
+        'drawer-backdrop',
+        'modal-owner',
+        'modal-partner',
+        'modal-property',
+        'modal-tenant',
+        'modal-view-tenant',
+        'modal-confirm-delete-property',
+        'modal-receipt'
+      ];
+
+      allOverlayIds.forEach(overlayId => {
+        const overlayEl = document.getElementById(overlayId);
+        if (overlayEl) {
+          overlayEl.addEventListener('click', (e) => {
+            // Close ONLY if the user clicked directly on the outer backdrop (not inside the modal box)
+            if (e.target === overlayEl) {
+              overlayEl.classList.add('hidden');
+            }
+          });
+        }
+      });
+
+      // Also close any open modal or drawer on pressing Escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          allOverlayIds.forEach(overlayId => {
+            const el = document.getElementById(overlayId);
+            if (el && !el.classList.contains('hidden')) {
+              el.classList.add('hidden');
+            }
+          });
+        }
       });
 
       // JSON Restore Upload (v2.0)

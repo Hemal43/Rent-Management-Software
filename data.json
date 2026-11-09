@@ -1,0 +1,205 @@
+{
+  "properties": [
+    {
+      "id": "prop-1794154551493",
+      "name": "B18, દિવ્ય શક્તિ સોસાયટી",
+      "type": "મકાન / ટેનામેન્ટ (House)",
+      "address": "B18, દિવ્ય શક્તિ સોસાયટી",
+      "isPartnership": false,
+      "p1Name": "જગદીશભાઈ દુધાત",
+      "p1Share": 100,
+      "p2Name": "",
+      "p2Share": 0
+    },
+    {
+      "id": "prop-1794154582424",
+      "name": "B19, દિવ્ય શક્તિ સોસાયટી, ગ્રાઉન્ડ ફ્લોર",
+      "type": "મકાન / ટેનામેન્ટ (House)",
+      "address": "B19, દિવ્ય શક્તિ સોસાયટી, ગ્રાઉન્ડ ફ્લોર",
+      "isPartnership": true,
+      "p1Name": "જગદીશભાઈ દુધાત",
+      "p1Share": 50,
+      "p2Name": "વિનુભાઈ દુધાત",
+      "p2Share": 50
+    },
+    {
+      "id": "prop-1794154743020",
+      "name": "B19, દિવ્ય શક્તિ સોસાયટી, પ્રથમ માળ",
+      "type": "મકાન / ટેનામેન્ટ (House)",
+      "address": "B19, દિવ્ય શક્તિ સોસાયટી, પ્રથમ માળ",
+      "isPartnership": true,
+      "p1Name": "જગદીશભાઈ દુધાત",
+      "p1Share": 50,
+      "p2Name": "વિનુભાઈ દુધાત",
+      "p2Share": 50
+    },
+    {
+      "id": "prop-1794154796711",
+      "name": "B19, દિવ્ય શક્તિ સોસાયટી, પતરાવલી રૂમ",
+      "type": "મકાન / ટેનામેન્ટ (House)",
+      "address": "B19, દિવ્ય શક્તિ સોસાયટી, પતરાવલી રૂમ",
+      "isPartnership": true,
+      "p1Name": "જગદીશભાઈ દુધાત",
+      "p1Share": 50,
+      "p2Name": "વિનુભાઈ દુધાત",
+      "p2Share": 50
+    }
+  ],
+  "tenants": [
+    {
+      "id": "ten-1794154916757",
+      "propertyId": "prop-1794154551493",
+      "name": "પરેશભાઈ રાખોલીયા",
+      "mobile": "9327424258",
+      "address": "સુરત",
+      "rent": 14000,
+      "deposit": 28000,
+      "startDate": "2026-07-15",
+      "idProof": "",
+      "photo": ""
+    },
+    {
+      "id": "ten-1794155166215",
+      "propertyId": "prop-1794154582424",
+      "name": "પાવસીયા તીર્થ",
+      "mobile": "9054096539",
+      "address": "સુરત",
+      "rent": 10000,
+      "deposit": 20000,
+      "startDate": "2026-11-15",
+      "idProof": "",
+      "photo": ""
+    },
+    {
+      "id": "ten-1794155388780",
+      "propertyId": "prop-1794154743020",
+      "name": "કનુભાઈ ગોસ્વામી",
+      "mobile": "9723265368",
+      "address": "સુરત",
+      "rent": 7000,
+      "deposit": 15000,
+      "startDate": "2026-08-01",
+      "idProof": "",
+      "photo": ""
+    }
+  ],
+  "transactions": [
+    {
+      "id": "tx-1794193617001",
+      "date": "2026-11-09",
+      "month": "2026-11",
+      "type": "expense",
+      "propertyId": "prop-1794154582424",
+      "tenantId": null,
+      "category": "મેઇન્ટેનન્સ",
+      "amount": 9660,
+      "p1Share": 4830,
+      "p2Share": 4830,
+      "paymentMode": "UPI / GPay / Paytm",
+      "remarks": ""
+    },
+    {
+      "id": "tx-1794156792976",
+      "date": "2026-09-10",
+      "month": "2026-08",
+      "type": "income",
+      "propertyId": "prop-1794154582424",
+      "tenantId": "ten-1794155166215",
+      "category": "ભાડું",
+      "amount": 10000,
+      "p1Share": 5000,
+      "p2Share": 5000,
+      "paymentMode": "UPI / GPay / Paytm",
+      "remarks": ""
+    },
+    {
+      "id": "tx-1794156106101",
+      "date": "2026-11-08",
+      "month": "2026-08",
+      "type": "expense",
+      "propertyId": "prop-1794154551493",
+      "tenantId": null,
+      "category": "મેઇન્ટેનન્સ",
+      "amount": 5800,
+      "p1Share": 5800,
+      "p2Share": 0,
+      "paymentMode": "UPI / GPay / Paytm",
+      "remarks": ""
+    },
+    {
+      "id": "tx-1794155892259",
+      "date": "2026-11-05",
+      "month": "2026-10",
+      "type": "income",
+      "propertyId": "prop-1794154551493",
+      "tenantId": "ten-1794154916757",
+      "category": "ભાડું",
+      "amount": 14000,
+      "p1Share": 14000,
+      "p2Share": 0,
+      "paymentMode": "UPI / GPay / Paytm",
+      "remarks": ""
+    },
+    {
+      "id": "tx-1794155743740",
+      "date": "2026-10-07",
+      "month": "2026-09",
+      "type": "income",
+      "propertyId": "prop-1794154551493",
+      "tenantId": "ten-1794154916757",
+      "category": "ભાડું",
+      "amount": 14000,
+      "p1Share": 14000,
+      "p2Share": 0,
+      "paymentMode": "UPI / GPay / Paytm",
+      "remarks": ""
+    },
+    {
+      "id": "tx-1794155661516",
+      "date": "2026-09-18",
+      "month": "2026-08",
+      "type": "income",
+      "propertyId": "prop-1794154551493",
+      "tenantId": "ten-1794154916757",
+      "category": "ભાડું",
+      "amount": 14000,
+      "p1Share": 14000,
+      "p2Share": 0,
+      "paymentMode": "UPI / GPay / Paytm",
+      "remarks": ""
+    },
+    {
+      "id": "tx-1794155498734",
+      "date": "2026-08-05",
+      "month": "2026-07",
+      "type": "income",
+      "propertyId": "prop-1794154551493",
+      "tenantId": "ten-1794154916757",
+      "category": "ભાડું",
+      "amount": 7000,
+      "p1Share": 7000,
+      "p2Share": 0,
+      "paymentMode": "UPI / GPay / Paytm",
+      "remarks": "Online"
+    }
+  ],
+  "settings": {
+    "googleSheetUrl": ""
+  },
+  "partners": [
+    {
+      "id": "part-1794153854523",
+      "name": "જગદીશભાઈ દુધાત",
+      "mobile": "9723339384"
+    },
+    {
+      "id": "part-1794153877531",
+      "name": "વિનુભાઈ દુધાત",
+      "mobile": "9979112763"
+    }
+  ],
+  "owner": {
+    "name": "જગદીશભાઈ દુધાત",
+    "mobile": "9723339384"
+  }
+}

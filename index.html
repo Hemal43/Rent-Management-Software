@@ -32,13 +32,15 @@
   <!-- Toast Notification Container -->
   <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col space-y-2 pointer-events-none"></div>
 
-  <!-- Android Status Bar / Top Header -->
+  <!-- Top Header with Hamburger Menu Button (v25.0) -->
   <header class="bg-indigo-700 text-white shadow-md sticky top-0 z-30 flex-none">
     <div class="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur text-xl font-bold shadow-inner">
-          🏢
-        </div>
+        <button id="btn-open-drawer" type="button" onclick="openDrawerMenu()" aria-label="મેનૂ ખોલો" class="w-10 h-10 rounded-xl bg-white/15 hover:bg-white/25 flex items-center justify-center backdrop-blur text-white transition active:scale-95 shadow-sm cursor-pointer">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"></path>
+          </svg>
+        </button>
         <div>
           <h1 class="text-lg font-bold tracking-tight flex items-center gap-1.5">
             ભાડા વ્યવસ્થાપક
@@ -47,18 +49,87 @@
           <p class="text-xs text-indigo-200">Rent & Property Management System</p>
         </div>
       </div>
-      <!-- Header Actions -->
-      <div class="flex items-center space-x-2">
-        <button id="btn-header-sync" class="text-xs bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/40 text-white px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition shadow-sm font-semibold active:scale-95">
-          <span>📦</span>
-          <span>ડેટા બેકઅપ (JSON)</span>
-        </button>
-      </div>
+      <!-- Right header area clean (Removed Home button as requested) -->
+      <div></div>
     </div>
   </header>
 
+  <!-- Slide-Out Hamburger Navigation Drawer (v25.0) -->
+  <div id="drawer-backdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 hidden flex">
+    <aside id="drawer-panel" class="bg-white w-72 max-w-[82vw] h-full shadow-2xl flex flex-col justify-between overflow-y-auto">
+      <div>
+        <!-- Drawer Header -->
+        <div class="bg-gradient-to-br from-indigo-700 via-indigo-600 to-indigo-800 p-5 text-white flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center text-xl font-bold shadow-inner">
+              🏢
+            </div>
+            <div>
+              <h2 class="font-bold text-base leading-tight">ભાડા વ્યવસ્થાપક</h2>
+              <p class="text-[11px] text-indigo-200">મેનૂ & સેટિંગ્સ</p>
+            </div>
+          </div>
+          <button id="btn-close-drawer" type="button" onclick="closeDrawerMenu()" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white font-bold text-base transition">
+            ✕
+          </button>
+        </div>
+
+        <!-- Drawer Menu Items (All Bottom Nav Items + JSON Backup Item) -->
+        <nav class="p-3 space-y-1.5">
+          <p class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">મુખ્ય મેનૂ (Navigation)</p>
+
+          <button type="button" class="nav-tab-btn w-full flex items-center space-x-3 px-3.5 py-3 rounded-xl text-sm font-bold transition bg-indigo-50 text-indigo-700" data-target="tab-dashboard" data-label="🏠 હોમ">
+            <span class="text-lg">🏠</span>
+            <span>હોમ (Dashboard)</span>
+          </button>
+
+          <button type="button" class="nav-tab-btn w-full flex items-center space-x-3 px-3.5 py-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition" data-target="tab-entry" data-label="➕ એન્ટ્રી">
+            <span class="text-lg">➕</span>
+            <span>નવી એન્ટ્રી (Add Entry)</span>
+          </button>
+
+          <button type="button" class="nav-tab-btn w-full flex items-center space-x-3 px-3.5 py-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition" data-target="tab-properties" data-label="🏢 પ્રોપર્ટી">
+            <span class="text-lg">🏢</span>
+            <span>પ્રોપર્ટી (Properties)</span>
+          </button>
+
+          <button type="button" class="nav-tab-btn w-full flex items-center space-x-3 px-3.5 py-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition" data-target="tab-tenants" data-label="👥 ભાડુઆત">
+            <span class="text-lg">👥</span>
+            <span>ભાડુઆત (Tenants)</span>
+          </button>
+
+          <button type="button" class="nav-tab-btn w-full flex items-center space-x-3 px-3.5 py-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition" data-target="tab-partners" data-label="🤝 પાર્ટનર્સ">
+            <span class="text-lg">🤝</span>
+            <span>પાર્ટનર્સ & માલિક (Partners)</span>
+          </button>
+
+          <button type="button" class="nav-tab-btn w-full flex items-center space-x-3 px-3.5 py-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition" data-target="tab-reports" data-label="📊 હિસાબ">
+            <span class="text-lg">📊</span>
+            <span>વાર્ષિક હિસાબ (Reports)</span>
+          </button>
+
+          <div class="pt-2 mt-2 border-t border-slate-100">
+            <p class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">ડેટા & ફાઇલ સેટિંગ્સ</p>
+            <button id="btn-header-sync" type="button" class="nav-tab-btn w-full flex items-center space-x-3 px-3.5 py-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition" data-target="tab-settings" data-label="📦 ડેટા બેકઅપ">
+              <span class="text-lg">📦</span>
+              <span>ડેટા બેકઅપ (`data.json`)</span>
+            </button>
+          </div>
+        </nav>
+      </div>
+
+      <!-- Quick JSON Download Footer inside Drawer -->
+      <div class="p-4 border-t border-slate-100 bg-slate-50 space-y-2">
+        <button type="button" onclick="downloadDataJsonFile()" class="w-full py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition">
+          <span>⬇️</span> `data.json` સેવ કરો
+        </button>
+        <p class="text-[10px] text-center text-slate-400">બહાર ક્લિક કરવાથી મેનૂ બંધ થશે</p>
+      </div>
+    </aside>
+  </div>
+
   <!-- Main Scrollable App Container -->
-  <main class="flex-1 overflow-y-auto pb-24 max-w-3xl w-full mx-auto p-4 space-y-4">
+  <main class="flex-1 overflow-y-auto pb-8 max-w-3xl w-full mx-auto p-4 space-y-4">
 
     <!-- TAB 1: DASHBOARD (હોમ) -->
     <section id="tab-dashboard" class="space-y-4">
@@ -520,35 +591,7 @@
 
   </main>
 
-  <!-- Bottom Navigation Bar (Android Mobile App Style) -->
-  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-30 shadow-lg">
-    <div class="max-w-3xl mx-auto grid grid-cols-6 h-16">
-      <button class="nav-tab-btn flex flex-col items-center justify-center text-indigo-600" data-target="tab-dashboard">
-        <span class="text-lg">🏠</span>
-        <span class="text-[10px] font-bold mt-0.5">હોમ</span>
-      </button>
-      <button class="nav-tab-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-600" data-target="tab-entry">
-        <span class="text-lg">➕</span>
-        <span class="text-[10px] font-semibold mt-0.5">એન્ટ્રી</span>
-      </button>
-      <button class="nav-tab-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-600" data-target="tab-properties">
-        <span class="text-lg">🏢</span>
-        <span class="text-[10px] font-semibold mt-0.5">પ્રોપર્ટી</span>
-      </button>
-      <button class="nav-tab-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-600" data-target="tab-tenants">
-        <span class="text-lg">👥</span>
-        <span class="text-[10px] font-semibold mt-0.5">ભાડુઆત</span>
-      </button>
-      <button class="nav-tab-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-600" data-target="tab-partners">
-        <span class="text-lg">🤝</span>
-        <span class="text-[10px] font-semibold mt-0.5">પાર્ટનર્સ</span>
-      </button>
-      <button class="nav-tab-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-600" data-target="tab-reports">
-        <span class="text-lg">📊</span>
-        <span class="text-[10px] font-semibold mt-0.5">હિસાબ</span>
-      </button>
-    </div>
-  </nav>
+  <!-- Bottom sticky bar removed; all items moved to Hamburger Drawer Menu -->
 
   <!-- ==================== MODALS ==================== -->
 
@@ -888,18 +931,25 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-2">
-        <button id="btn-print-receipt" type="button" class="py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
-          <span>🖨️</span> પ્રિન્ટ / PDF
+      <input type="hidden" id="current-receipt-tx-id" value="">
+      <div class="space-y-2 pt-1">
+        <!-- Primary Button: Generate & Share/Download High-Res Image Receipt for WhatsApp -->
+        <button id="btn-share-receipt-image" type="button" onclick="shareOrDownloadReceiptImage()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition active:scale-95 cursor-pointer">
+          <span>🖼️</span> રસીદ ફોટો (Image) ડાઉનલોડ / WhatsApp શેર
         </button>
-        <a id="btn-whatsapp-receipt" href="#" target="_blank" class="py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
-          <span>💬</span> WhatsApp રસીદ
-        </a>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="btn-print-receipt" type="button" onclick="printSingleReceiptPDF()" class="py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer">
+            <span>📄</span> PDF / પ્રિન્ટ રસીદ
+          </button>
+          <a id="btn-whatsapp-receipt" href="#" target="_blank" class="py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95">
+            <span>💬</span> WhatsApp મેસેજ
+          </a>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- APPLICATION LOGIC -->
-  <script src="app.js"></script>
+  <script src="app.js?v=5.2"></script>
 </body>
 </html>
