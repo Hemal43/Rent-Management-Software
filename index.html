@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="gu" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ભાડા વ્યવસ્થાપક (Rent Manager Android App)</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#4f46e5',
+              600: '#4338ca',
+              700: '#3730a3',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="h-full flex flex-col text-slate-800 bg-slate-100">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <!-- Android Status Bar / Top Header -->
+  <header class="bg-indigo-700 text-white shadow-md sticky top-0 z-30 flex-none">
+    <div class="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur text-xl font-bold shadow-inner">
+          🏢
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight flex items-center gap-1.5">
+            ભાડા વ્યવસ્થાપક
+            <span class="text-xs bg-emerald-500/90 px-2 py-0.5 rounded-full font-semibold">Web Portal</span>
+          </h1>
+          <p class="text-xs text-indigo-200">Rent & Property Management System</p>
+        </div>
+      </div>
+      <!-- Header Actions -->
+      <div class="flex items-center space-x-2">
+        <button id="btn-header-sync" class="text-xs bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/40 text-white px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition shadow-sm">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Google Sheets</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Scrollable App Container -->
+  <main class="flex-1 overflow-y-auto pb-24 max-w-3xl w-full mx-auto p-4 space-y-4">
+
+    <!-- TAB 1: DASHBOARD (હોમ) -->
+    <section id="tab-dashboard" class="space-y-4">
+      <!-- All-Time Total & Partner-Wise KPI Overview Card (v6.0) -->
+      <div class="bg-gradient-to-br from-indigo-700 via-indigo-600 to-indigo-800 rounded-2xl p-5 text-white shadow-lg shadow-indigo-900/10">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <span class="text-xs text-indigo-200 font-medium tracking-wide uppercase">સંપૂર્ણ હિસાબ (All-Time Summary)</span>
+            <div id="dash-current-month-display" class="text-lg font-semibold text-white">કુલ હિસાબ & પાર્ટનર ટોટલ</div>
+          </div>
+          <span id="dash-occupancy-badge" class="px-2.5 py-1 bg-white/15 backdrop-blur text-xs rounded-full font-medium text-emerald-200 border border-white/20">
+            ૩/૪ પ્રોપર્ટી ભાડે
+          </span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 pt-2 border-t border-white/10 text-center">
+          <div class="bg-white/10 rounded-xl p-2.5">
+            <p class="text-xs text-indigo-200">કુલ ભાડું (Rent)</p>
+            <p id="kpi-total-income" class="text-base sm:text-lg font-bold text-white mt-0.5">₹૦</p>
+          </div>
+          <div class="bg-white/10 rounded-xl p-2.5">
+            <p class="text-xs text-indigo-200">કુલ ખર્ચ (Expense)</p>
+            <p id="kpi-total-expense" class="text-base sm:text-lg font-bold text-rose-200 mt-0.5">₹૦</p>
+          </div>
+          <div class="bg-emerald-500/20 border border-emerald-400/30 rounded-xl p-2.5">
+            <p class="text-xs text-emerald-200">નેટ નફો (Net)</p>
+            <p id="kpi-net-profit" class="text-base sm:text-lg font-bold text-emerald-300 mt-0.5">₹૦</p>
+          </div>
+        </div>
+
+        <!-- Partner-Wise Total Profit Breakdown (v6.0) -->
+        <div class="mt-4 pt-3 border-t border-white/10">
+          <div class="flex items-center justify-between text-xs mb-2">
+            <span class="text-indigo-200 font-bold">🤝 પાર્ટનર વાઈઝ કુલ નફો (Partner-Wise Total)</span>
+            <span class="text-emerald-300 text-[11px] font-semibold" id="dash-partner-ratio-label">કુલ જમા ભાગ</span>
+          </div>
+          <div id="dash-partners-split-list" class="grid grid-cols-2 gap-2 text-xs">
+            <!-- Dynamically populated partner splits -->
+          </div>
+          <!-- 100% Self-Owned Profit Strip (v5.0) -->
+          <div class="mt-2.5 pt-2 border-t border-white/10 flex justify-between items-center text-xs">
+            <span class="text-emerald-200 flex items-center gap-1">
+              <span>👑</span> <strong id="dash-owner-title">સ્વતંત્ર માલિકી (૧૦૦% નફો):</strong>
+            </span>
+            <span id="dash-owner-self-profit" class="font-bold text-white text-sm">₹૦</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Action Buttons Row -->
+      <div class="grid grid-cols-4 gap-2">
+        <button id="quick-act-rent" class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-sm text-center hover:bg-slate-50 transition active:scale-95 flex flex-col items-center">
+          <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl mb-1">
+            💰
+          </div>
+          <span class="text-xs font-semibold text-slate-700">ભાડું એન્ટ્રી</span>
+        </button>
+        <button id="quick-act-expense" class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-sm text-center hover:bg-slate-50 transition active:scale-95 flex flex-col items-center">
+          <div class="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-xl mb-1">
+            🧾
+          </div>
+          <span class="text-xs font-semibold text-slate-700">ખર્ચ એન્ટ્રી</span>
+        </button>
+        <button id="quick-act-property" class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-sm text-center hover:bg-slate-50 transition active:scale-95 flex flex-col items-center">
+          <div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl mb-1">
+            🏢
+          </div>
+          <span class="text-xs font-semibold text-slate-700">પ્રોપર્ટી</span>
+        </button>
+        <button id="quick-act-tenant" class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-sm text-center hover:bg-slate-50 transition active:scale-95 flex flex-col items-center">
+          <div class="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-xl mb-1">
+            👤
+          </div>
+          <span class="text-xs font-semibold text-slate-700">ભાડુઆત</span>
+        </button>
+      </div>
+
+      <!-- Recent Transactions Section -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+            <span>📋</span> તાજેતરના હિસાબ / એન્ટ્રીઓ (Recent Entries)
+          </h2>
+          <button id="btn-see-all-entries" class="text-xs text-indigo-600 font-semibold hover:underline">બધી જુઓ</button>
+        </div>
+        <div id="dash-recent-list" class="divide-y divide-slate-100 space-y-2">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: DATA ENTRY (ડેટા એન્ટ્રી ફોર્મ) -->
+    <section id="tab-entry" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-800">સરળ ડેટા એન્ટ્રી ફોર્મ</h2>
+            <p class="text-xs text-slate-500">ઓટોમેટિક ડેટ અને મંથ સિલેક્શન સાથે</p>
+          </div>
+          <span class="text-xs px-2.5 py-1 bg-indigo-50 text-indigo-700 font-medium rounded-full">ઓટો ડેટ ઓન</span>
+        </div>
+
+        <form id="form-transaction" class="space-y-4">
+          <!-- Type Toggle (Income / Expense) -->
+          <div class="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl">
+            <button type="button" id="toggle-type-income" class="py-2.5 text-xs sm:text-sm font-bold rounded-lg text-white bg-emerald-600 shadow-sm transition">
+              💰 ભાડું આવક (Rent Income)
+            </button>
+            <button type="button" id="toggle-type-expense" class="py-2.5 text-xs sm:text-sm font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition">
+              🧾 ખર્ચ (Property Expense)
+            </button>
+          </div>
+          <input type="hidden" id="entry-type" value="income">
+
+          <!-- Auto Date & Month Row -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="entry-date" class="block text-xs font-semibold text-slate-700 mb-1">તારીખ (Date) *</label>
+              <input type="date" id="entry-date" required class="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+            </div>
+            <div>
+              <label for="entry-month" class="block text-xs font-semibold text-slate-700 mb-1">મહિનો (Month) *</label>
+              <select id="entry-month" required class="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+                <option value="2026-01">જાન્યુઆરી 2026</option>
+                <option value="2026-02">ફેબ્રુઆરી 2026</option>
+                <option value="2026-03">માર્ચ 2026</option>
+                <option value="2026-04">એપ્રિલ 2026</option>
+                <option value="2026-05">મે 2026</option>
+                <option value="2026-06">જૂન 2026</option>
+                <option value="2026-07">જુલાઈ 2026</option>
+                <option value="2026-08">ઓગસ્ટ 2026</option>
+                <option value="2026-09">સપ્ટેમ્બર 2026</option>
+                <option value="2026-10">ઓક્ટોબર 2026</option>
+                <option value="2026-11">નવેમ્બર 2026</option>
+                <option value="2026-12">ડિસેમ્બર 2026</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Property Selection -->
+          <div>
+            <label for="entry-property" class="block text-xs font-semibold text-slate-700 mb-1">પ્રોપર્ટી પસંદ કરો (Select Property) *</label>
+            <select id="entry-property" required class="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+
+          <!-- Dynamic Info: Connected Tenant (Shown for Rent Income) -->
+          <div id="entry-tenant-info-box" class="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <div id="entry-tenant-avatar" class="w-10 h-10 rounded-full bg-indigo-200 overflow-hidden flex items-center justify-center font-bold text-indigo-700 text-sm">
+                👤
+              </div>
+              <div>
+                <p class="text-xs text-indigo-600 font-medium">સક્રિય ભાડુઆત (Active Tenant)</p>
+                <p id="entry-tenant-name" class="text-sm font-bold text-slate-800">ભાડુઆત માહિતી</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="text-xs text-slate-500">નિયત ભાડું</span>
+              <p id="entry-suggested-rent" class="text-sm font-bold text-emerald-700">₹૦</p>
+            </div>
+          </div>
+
+          <!-- Expense Category (Shown when Expense is selected) -->
+          <div id="entry-expense-cat-container" class="hidden">
+            <label for="entry-expense-category" class="block text-xs font-semibold text-slate-700 mb-1">ખર્ચનો પ્રકાર (Expense Category) *</label>
+            <select id="entry-expense-category" class="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+              <option value="મેઇન્ટેનન્સ">મેઇન્ટેનન્સ (Maintenance Fee)</option>
+              <option value="સમારકામ">સમારકામ / રિપેરિંગ (Repairs & Renovation)</option>
+              <option value="મ્યુનિસિપલ ટેક્સ">મ્યુનિસિપલ ટેક્સ / વેરો (Property Tax)</option>
+              <option value="લાઈટ-પાણી બિલ">લાઈટ-પાણી બિલ (Electricity / Water)</option>
+              <option value="દલાલી / કમિશન">દલાલી / કમિશન (Brokerage)</option>
+              <option value="અન્ય ખર્ચ">અન્ય ખર્ચ (Other Miscellaneous)</option>
+            </select>
+          </div>
+
+          <!-- Amount Field -->
+          <div>
+            <label for="entry-amount" class="block text-xs font-semibold text-slate-700 mb-1">રકમ (Amount in ₹) *</label>
+            <div class="relative">
+              <span class="absolute left-3 top-2.5 text-slate-400 font-bold">₹</span>
+              <input type="number" id="entry-amount" required placeholder="0" min="1" step="1" class="w-full text-base font-bold pl-8 pr-3 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+            </div>
+          </div>
+
+          <!-- Live Split Preview Box (Shown ONLY for Partnership Properties) -->
+          <div id="entry-split-container" class="bg-slate-50 border border-slate-200 rounded-xl p-3 hidden">
+            <p class="text-xs font-semibold text-slate-600 mb-1.5 flex items-center justify-between">
+              <span>ભાગીદારી આપોઆપ ભાગલા (Auto Partnership Split):</span>
+              <span class="text-indigo-600 font-bold" id="entry-split-ratio-tag">૫૦% / ૫૦%</span>
+            </p>
+            <div id="entry-live-split-preview" class="grid grid-cols-2 gap-2 text-xs">
+              <div class="bg-white p-2 rounded-lg border border-slate-200">
+                <span class="text-slate-500 block" id="entry-p1-label">પાર્ટનર ૧:</span>
+                <span class="font-bold text-slate-800 text-sm" id="entry-p1-amount">₹૦</span>
+              </div>
+              <div class="bg-white p-2 rounded-lg border border-slate-200">
+                <span class="text-slate-500 block" id="entry-p2-label">પાર્ટનર ૨:</span>
+                <span class="font-bold text-slate-800 text-sm" id="entry-p2-amount">₹૦</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment Mode & Notes -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="entry-payment-mode" class="block text-xs font-semibold text-slate-700 mb-1">ચુકવણી માધ્યમ (Payment Mode)</label>
+              <select id="entry-payment-mode" class="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-300 bg-white">
+                <option value="UPI / GPay / Paytm">UPI / GPay / Paytm</option>
+                <option value="રોકડ (Cash)">રોકડ (Cash)</option>
+                <option value="બેંક ટ્રાન્સફર (NEFT/IMPS)">બેંક ટ્રાન્સફર (NEFT/IMPS)</option>
+                <option value="ચેક (Cheque)">ચેક (Cheque)</option>
+              </select>
+            </div>
+            <div>
+              <label for="entry-remarks" class="block text-xs font-semibold text-slate-700 mb-1">નોંધ (Remarks / Ref)</label>
+              <input type="text" id="entry-remarks" placeholder="ઉદા. Google Pay ref 8492" class="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-300 bg-white">
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" id="btn-save-transaction" class="w-full py-3.5 px-4 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] transition shadow-md shadow-indigo-600/20 text-sm flex items-center justify-center gap-2">
+            <span>💾</span> એન્ટ્રી સેવ કરો (Save & Sync)
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- TAB 3: PROPERTIES (પ્રોપર્ટી મેનેજમેન્ટ) -->
+    <section id="tab-properties" class="hidden space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-slate-800">પ્રોપર્ટી લિસ્ટ (Properties)</h2>
+          <p class="text-xs text-slate-500">બધી પ્રોપર્ટી અને પાર્ટનરશિપ વિગતો</p>
+        </div>
+        <button id="btn-open-add-property" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition">
+          <span>+ નવી પ્રોપર્ટી</span>
+        </button>
+      </div>
+
+      <div id="properties-card-list" class="space-y-3">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- TAB 4: TENANTS (ભાડુઆત મેનેજમેન્ટ - નામ, મોબાઈલ, સરનામું, ફોટો) -->
+    <section id="tab-tenants" class="hidden space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-slate-800">ભાડુઆત ડિરેક્ટરી (Tenants)</h2>
+          <p class="text-xs text-slate-500">ફોટો, મોબાઈલ, સરનામું અને ભાડા માહિતી</p>
+        </div>
+        <button id="btn-open-add-tenant" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition">
+          <span>+ નવો ભાડુઆત</span>
+        </button>
+      </div>
+
+      <!-- Tenants Filter & Search -->
+      <div class="relative">
+        <input type="text" id="tenant-search-input" placeholder="ભાડુઆત નામ કે મોબાઈલથી શોધો..." class="w-full text-sm pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 bg-white shadow-sm focus:ring-2 focus:ring-indigo-500">
+        <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
+      </div>
+
+      <div id="tenants-card-list" class="space-y-3">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- TAB: PARTNERS & OWNER (ભાગીદારી & માલિક મેનેજમેન્ટ v5.0) -->
+    <section id="tab-partners" class="hidden space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-slate-800">ભાગીદારી & માલિક મેનેજમેન્ટ</h2>
+          <p class="text-xs text-slate-500">મુખ્ય માલિક પ્રોફાઇલ અને પાર્ટનર્સ હિસાબ</p>
+        </div>
+        <button id="btn-open-add-partner" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition">
+          <span>+ નવો પાર્ટનર</span>
+        </button>
+      </div>
+
+      <!-- 100% Self-Owned Properties Owner Card (v5.0) -->
+      <div id="owner-profile-container">
+        <!-- Rendered dynamically in renderPartners() -->
+      </div>
+
+      <!-- Partners Section Header -->
+      <div class="pt-1">
+        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+          <span>🤝</span> અન્ય પાર્ટનર્સ લિસ્ટ (Partners Directory)
+        </h3>
+      </div>
+
+      <!-- Partners Cards Container -->
+      <div id="partners-card-list" class="space-y-3">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- TAB 5: ANNUAL SUMMARY & REPORTS (વાર્ષિક હિસાબ) -->
+    <section id="tab-reports" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="text-base font-bold text-slate-800">વાર્ષિક હિસાબ & રિપોર્ટ</h2>
+            <p class="text-xs text-slate-500">Annual Summary & Profit Analysis</p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <!-- Partner Filter Dropdown (v4.0) -->
+            <select id="report-partner-select" class="text-xs font-bold bg-indigo-50 border border-indigo-200 rounded-lg px-2.5 py-1.5 text-indigo-800">
+              <option value="ALL">બધા પાર્ટનર્સ (All)</option>
+            </select>
+            <select id="report-year-select" class="text-xs font-bold bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700">
+              <option value="2026" selected>વર્ષ 2026</option>
+              <option value="2025">વર્ષ 2025</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Annual Totals Cards -->
+        <div class="grid grid-cols-3 gap-2 mb-4">
+          <div class="bg-slate-50 rounded-xl p-3 border border-slate-200">
+            <span class="text-[11px] text-slate-500 block">વાર્ષિક કુલ આવક</span>
+            <span id="rep-annual-income" class="text-sm sm:text-base font-bold text-emerald-600">₹૦</span>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-3 border border-slate-200">
+            <span class="text-[11px] text-slate-500 block">વાર્ષિક કુલ ખર્ચ</span>
+            <span id="rep-annual-expense" class="text-sm sm:text-base font-bold text-rose-600">₹૦</span>
+          </div>
+          <div class="bg-indigo-50 rounded-xl p-3 border border-indigo-200">
+            <span class="text-[11px] text-indigo-700 block font-semibold">ચોખ્ખો વાર્ષિક નફો</span>
+            <span id="rep-annual-net" class="text-sm sm:text-base font-bold text-indigo-800">₹૦</span>
+          </div>
+        </div>
+
+        <!-- Annual Partner Split Distribution -->
+        <div class="bg-indigo-900 text-white rounded-xl p-3 mb-4 shadow-sm">
+          <p class="text-xs text-indigo-200 font-semibold mb-2">🤝 પાર્ટનર્સ વચ્ચે વાર્ષિક નફાની વહેંચણી (Annual Distribution):</p>
+          <div id="rep-partners-annual-split" class="grid grid-cols-2 gap-2 text-xs">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Bar Chart Container (Fixed height for Chart.js) -->
+        <div class="mb-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-bold text-slate-700">માસિક આવક વિરુદ્ધ ખર્ચ (Monthly Income vs Expense)</h3>
+            <span class="text-[11px] text-slate-400">Chart.js Analysis</span>
+          </div>
+          <div class="relative h-64 bg-slate-50 p-2 rounded-xl border border-slate-200">
+            <canvas id="annual-summary-chart"></canvas>
+          </div>
+        </div>
+
+        <!-- Month by Month Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left">
+            <thead class="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+              <tr>
+                <th class="py-2 px-2.5">મહિનો</th>
+                <th class="py-2 px-2.5 text-right">આવક (₹)</th>
+                <th class="py-2 px-2.5 text-right">ખર્ચ (₹)</th>
+                <th class="py-2 px-2.5 text-right">નેટ નફો (₹)</th>
+              </tr>
+            </thead>
+            <tbody id="rep-monthly-table-body" class="divide-y divide-slate-100 font-medium">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Export CSV Button -->
+        <div class="mt-4 pt-3 border-t border-slate-100 flex justify-end">
+          <button id="btn-export-csv" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm">
+            <span>📥</span> CSV રિપોર્ટ ડાઉનલોડ કરો
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 6: SETTINGS & GOOGLE SHEETS (સેટિંગ્સ) -->
+    <section id="tab-settings" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 space-y-5">
+        <div>
+          <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+            <span>📊</span> Google Sheets કનેક્શન & સિંક
+          </h2>
+          <p class="text-xs text-slate-500">ગૂગલ શીટ્સ સાથે રિયલ ટાઈમ બેકઅપ અને સિંક માટે</p>
+        </div>
+
+        <!-- Google Apps Script URL Config -->
+        <div class="space-y-2">
+          <label for="settings-sheet-url" class="block text-xs font-semibold text-slate-700">Google Apps Script Web App URL</label>
+          <input type="url" id="settings-sheet-url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-300 font-mono">
+          <p class="text-[11px] text-slate-500">તમારી Google Sheet સાથે જોડાયેલ Apps Script Webhook URL અહીં નાખો.</p>
+        </div>
+
+        <div class="flex gap-2">
+          <button id="btn-save-sheet-url" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition active:scale-95">
+            URL સેવ કરો
+          </button>
+          <button id="btn-sync-all-sheets" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition active:scale-95 flex items-center gap-1">
+            <span>🔄</span> અત્યારે સિંક કરો
+          </button>
+        </div>
+
+        <!-- Apps Script Code Viewer & Copy -->
+        <div class="bg-slate-900 rounded-xl p-3 text-slate-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-indigo-400">Google Apps Script કોડ (Code.gs)</span>
+            <button id="btn-copy-script-code" class="text-xs bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded border border-slate-700 text-indigo-300 font-medium transition">
+              કોડ કોપી કરો
+            </button>
+          </div>
+          <pre class="text-[11px] font-mono overflow-x-auto max-h-40 p-2 bg-slate-950 rounded text-slate-300 hide-scrollbar" id="script-code-block">
+function doPost(e) {
+  var SHEET_ID = "1RIhoyCwPXG9Z6sQVABJkL9cx3UhCaZLA3n7EPE9OL50";
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName("Transactions") || ss.insertSheet("Transactions");
+  var data = JSON.parse(e.postData.contents);
+  var typeLabel = (data.type === "income") ? "આવક (Income)" : "ખર્ચ (Expense)";
+  var p1 = (data.p1Share !== undefined) ? data.p1Share : (data.p1_share || 0);
+  var p2 = (data.p2Share !== undefined) ? data.p2Share : (data.p2_share || 0);
+  sheet.appendRow([
+    data.id, data.date, data.month, typeLabel, data.property || "-",
+    data.tenant || "-", data.category || "-", Number(data.amount || 0),
+    Number(p1), Number(p2), data.paymentMode || "-", data.remarks || "-"
+  ]);
+  return ContentService.createTextOutput(JSON.stringify({status: "success"})).setMimeType(ContentService.MimeType.JSON);
+}</pre>
+        </div>
+
+        <!-- Step-by-step Gujarati instructions -->
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs text-amber-900 space-y-1.5">
+          <p class="font-bold">📝 ગૂગલ શીટ્સ સાથે જોડવાની સરળ રીત:</p>
+          <ol class="list-decimal list-inside space-y-1 text-[11px] text-amber-800">
+            <li>નવી Google Sheet બનાવો અને <strong>Extensions &gt; Apps Script</strong> ખોલો.</li>
+            <li>ઉપરનો કોડ કોપી કરી પેસ્ટ કરો અને સેવ કરો.</li>
+            <li><strong>Deploy &gt; New deployment &gt; Web app</strong> પસંદ કરો (Who has access: "Anyone").</li>
+            <li>મળેલ વેબ એપ URL અહીં સેવ કરો. દરેક એન્ટ્રી આપોઆપ શીટમાં રેકોર્ડ થશે!</li>
+          </ol>
+        </div>
+
+        <!-- Offline Data Backup & Restore (v2.0 Update) -->
+        <div class="pt-3 border-t border-slate-100 space-y-2">
+          <p class="text-xs font-bold text-slate-800">📦 ઓફલાઇન ડેટા બેકઅપ અને રીસ્ટોર (v2.0)</p>
+          <p class="text-[11px] text-slate-500">નવો APK અપડેટ કરતી વખતે કે ફોન બદલતી વખતે તમારો સંપૂર્ણ ડેટા ફાઇલ તરીકે સેવ અને રીસ્ટોર કરો.</p>
+          <div class="flex flex-wrap gap-2 pt-1">
+            <button id="btn-backup-json" type="button" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-2 rounded-xl font-bold transition flex items-center gap-1.5">
+              <span>⬇️</span> બેકઅપ ડાઉનલોડ (JSON)
+            </button>
+            <label for="input-restore-json" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-2 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer">
+              <span>⬆️</span> બેકઅપ રીસ્ટોર કરો
+              <input type="file" id="input-restore-json" accept=".json" class="hidden">
+            </label>
+          </div>
+        </div>
+
+        <!-- Backup & Sample Data -->
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-bold text-slate-800">ડેટા રીસેટ / સેમ્પલ ડેટા</p>
+            <p class="text-[11px] text-slate-500">ટેસ્ટિંગ માટે મૂળ સેમ્પલ ડેટા ફરીથી લોડ કરો</p>
+          </div>
+          <button id="btn-reset-sample-data" class="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg font-semibold transition">
+            રીસેટ ડેટા
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Navigation Bar (Android Mobile App Style) -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-30 shadow-lg">
+    <div class="max-w-3xl mx-auto grid grid-cols-6 h-16">
+      <button class="nav-tab-btn flex flex-col items-center justify-center text-indigo-600" data-target="tab-dashboard">
+        <span class="text-lg">🏠</span>
+        <span class="text-[10px] font-bold mt-0.5">હોમ</span>
+      </button>
+      <button class="nav-tab-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-600" data-target="tab-entry">
+        <span class="text-lg">➕</span>
+        <span class="text-[10px] font-semibold mt-0.5">એન્ટ્રી</span>
+      </button>
+      <button class="nav-tab-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-600" data-target="tab-properties">
+        <span class="text-lg">🏢</span>
+        <span class="text-[10px] font-semibold mt-0.5">પ્રોપર્ટી</span>
+      </button>
+      <button class="nav-tab-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-600" data-target="tab-tenants">
+        <span class="text-lg">👥</span>
+        <span class="text-[10px] font-semibold mt-0.5">ભાડુઆત</span>
+      </button>
+      <button class="nav-tab-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-600" data-target="tab-partners">
+        <span class="text-lg">🤝</span>
+        <span class="text-[10px] font-semibold mt-0.5">પાર્ટનર્સ</span>
+      </button>
+      <button class="nav-tab-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-600" data-target="tab-reports">
+        <span class="text-lg">📊</span>
+        <span class="text-[10px] font-semibold mt-0.5">હિસાબ</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- Modal: Edit Owner Profile (માલિક પ્રોફાઇલ v5.0) -->
+  <div id="modal-owner" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <span>👑</span> મુખ્ય માલિક પ્રોફાઇલ
+        </h3>
+        <button id="btn-close-owner-modal" class="text-slate-400 hover:text-slate-600 text-lg font-bold p-1">✕</button>
+      </div>
+      <form id="form-owner" class="space-y-3">
+        <div>
+          <label for="owner-name-input" class="block text-xs font-semibold text-slate-700 mb-1">માલિકનું નામ (Owner Name) *</label>
+          <input type="text" id="owner-name-input" required placeholder="દા.ત. હિતેશભાઈ" class="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-300 bg-white font-medium">
+        </div>
+        <div>
+          <label for="owner-mobile-input" class="block text-xs font-semibold text-slate-700 mb-1">મોબાઈલ નંબર (Mobile Number) *</label>
+          <input type="tel" id="owner-mobile-input" required placeholder="9825123456" class="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-300 bg-white font-medium">
+        </div>
+        <div class="bg-indigo-50/70 p-3 rounded-xl border border-indigo-100 text-xs text-indigo-900 leading-relaxed">
+          💡 ૧૦૦% સ્વતંત્ર માલિકી ધરાવતી બધી જ પ્રોપર્ટીની કુલ કમાણી અને વાર્ષિક હિસાબ આપોઆપ આ માલિક પ્રોફાઇલમાં ગણાશે.
+        </div>
+        <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm transition shadow-md shadow-indigo-600/20">
+          માલિક પ્રોફાઇલ સેવ કરો
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add / Edit Partner (પાર્ટનર ઉમેરો v3.0) -->
+  <div id="modal-partner" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 id="modal-partner-title" class="text-base font-bold text-slate-800">નવો પાર્ટનર ઉમેરો</h3>
+        <button id="btn-close-partner-modal" class="text-slate-400 hover:text-slate-600 text-lg font-bold p-1">✕</button>
+      </div>
+      <form id="form-partner" class="space-y-3">
+        <input type="hidden" id="partner-edit-id" value="">
+        <div>
+          <label for="partner-name" class="block text-xs font-semibold text-slate-700 mb-1">પાર્ટનરનું નામ (Partner Name) *</label>
+          <input type="text" id="partner-name" required placeholder="દા.ત. રાજેશભાઈ પટેલ" class="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-300 bg-white">
+        </div>
+        <div>
+          <label for="partner-mobile" class="block text-xs font-semibold text-slate-700 mb-1">મોબાઈલ નંબર (Mobile Number) *</label>
+          <input type="tel" id="partner-mobile" required placeholder="9898234567" class="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-300 bg-white">
+        </div>
+        <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm transition shadow-md shadow-indigo-600/20">
+          પાર્ટનર સેવ કરો
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add / Edit Property -->
+  <div id="modal-property" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 id="modal-property-title" class="text-base font-bold text-slate-800">નવી પ્રોપર્ટી ઉમેરો</h3>
+        <button id="btn-close-property-modal" class="text-slate-400 hover:text-slate-600 text-lg font-bold p-1">✕</button>
+      </div>
+      <form id="form-property" class="space-y-3">
+        <input type="hidden" id="prop-edit-id" value="">
+        <div>
+          <label for="prop-name" class="block text-xs font-semibold text-slate-700 mb-1">પ્રોપર્ટીનું નામ (Property Name) *</label>
+          <input type="text" id="prop-name" required placeholder="દા.ત. શિવમ એપાર્ટમેન્ટ ૩૦૨" class="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 bg-white">
+        </div>
+        <div>
+          <label for="prop-type" class="block text-xs font-semibold text-slate-700 mb-1">પ્રકાર (Type)</label>
+          <select id="prop-type" class="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 bg-white">
+            <option value="ફ્લેટ (Flat)">ફ્લેટ (Flat)</option>
+            <option value="શોપ / દુકાન (Shop)">શોપ / દુકાન (Shop)</option>
+            <option value="મકાન / ટેનામેન્ટ (House)">મકાન / ટેનામેન્ટ (House)</option>
+            <option value="ઓફિસ (Office)">ઓફિસ (Office)</option>
+          </select>
+        </div>
+        <div>
+          <label for="prop-address" class="block text-xs font-semibold text-slate-700 mb-1">સરનામું (Address) *</label>
+          <textarea id="prop-address" required rows="2" placeholder="પૂરું સરનામું લખો..." class="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 bg-white"></textarea>
+        </div>
+
+        <!-- Optional Partnership Checkbox & Section -->
+        <div class="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-100 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <label for="prop-has-partnership" class="flex items-center space-x-2.5 cursor-pointer select-none">
+              <input type="checkbox" id="prop-has-partnership" class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer">
+              <span class="text-xs font-bold text-indigo-950">આ પ્રોપર્ટીમાં ભાગીદારી (Partnership) છે?</span>
+            </label>
+            <span id="prop-partnership-status-badge" class="text-[10px] font-semibold text-slate-500 bg-white/80 px-2 py-0.5 rounded-md border border-slate-200">સ્વતંત્ર (૧૦૦%)</span>
+          </div>
+
+          <!-- Dynamic Partnership Ratio Fields with Partner Dropdowns (v4.0) -->
+          <div id="prop-partnership-fields-container" class="hidden pt-2 border-t border-indigo-100/80 space-y-2">
+            <div class="flex items-center justify-between">
+              <p class="text-[11px] text-indigo-700 font-semibold">ભાગીદારી ટકાવારી (Partnership Ratio):</p>
+              <button type="button" onclick="openAddPartner()" class="text-[10px] text-indigo-600 font-bold hover:underline">+ નવો પાર્ટનર ઉમેરો</button>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label for="prop-p1-select" class="block text-[11px] text-slate-600 mb-0.5">પાર્ટનર ૧ પસંદ કરો</label>
+                <select id="prop-p1-select" class="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-300 bg-white font-medium">
+                  <!-- Populated dynamically from appData.partners -->
+                </select>
+                <div class="mt-1 flex items-center">
+                  <input type="number" id="prop-p1-share" value="50" min="0" max="100" class="w-16 text-xs px-2 py-1 rounded border border-slate-300 font-bold text-indigo-600">
+                  <span class="text-xs ml-1 font-bold text-slate-500">%</span>
+                </div>
+              </div>
+              <div>
+                <label for="prop-p2-select" class="block text-[11px] text-slate-600 mb-0.5">પાર્ટનર ૨ પસંદ કરો</label>
+                <select id="prop-p2-select" class="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-300 bg-white font-medium">
+                  <!-- Populated dynamically from appData.partners -->
+                </select>
+                <div class="mt-1 flex items-center">
+                  <input type="number" id="prop-p2-share" value="50" min="0" max="100" class="w-16 text-xs px-2 py-1 rounded border border-slate-300 font-bold text-indigo-600">
+                  <span class="text-xs ml-1 font-bold text-slate-500">%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-1">
+          <button type="submit" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm transition shadow-sm">
+            પ્રોપર્ટી સેવ કરો
+          </button>
+          <button type="button" id="btn-modal-delete-property" class="hidden px-4 py-3 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-bold rounded-xl text-sm transition">
+            🗑️ ડિલીટ
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add / Edit Tenant (નામ, મોબાઈલ, સરનામું, ફોટો) -->
+  <div id="modal-tenant" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 id="modal-tenant-title" class="text-base font-bold text-slate-800">નવો ભાડુઆત ઉમેરો</h3>
+        <button id="btn-close-tenant-modal" class="text-slate-400 hover:text-slate-600 text-lg font-bold p-1">✕</button>
+      </div>
+
+      <form id="form-tenant" class="space-y-3">
+        <input type="hidden" id="tenant-edit-id" value="">
+
+        <!-- Photo Section: Upload / Camera / Avatar Preview -->
+        <div class="flex items-center space-x-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <div class="relative group">
+            <div id="tenant-photo-preview" class="w-16 h-16 rounded-full bg-indigo-100 border-2 border-indigo-500 overflow-hidden flex items-center justify-center text-2xl font-bold text-indigo-600 shadow-inner">
+              👤
+            </div>
+            <input type="hidden" id="tenant-photo-data" value="">
+          </div>
+          <div class="flex-1">
+            <label class="block text-xs font-bold text-slate-700 mb-1">ભાડુઆતનો ફોટો (Photo)</label>
+            <input type="file" id="tenant-photo-input" accept="image/*" class="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+            <p class="text-[10px] text-slate-400 mt-1">ગેલેરી અથવા કેમેરાથી ફોટો સિલેક્ટ કરો</p>
+          </div>
+        </div>
+
+        <div>
+          <label for="tenant-name" class="block text-xs font-semibold text-slate-700 mb-1">ભાડુઆતનું નામ (Full Name) *</label>
+          <input type="text" id="tenant-name" required placeholder="દા.ત. સંજયભાઈ પટેલ" class="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 bg-white">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label for="tenant-mobile" class="block text-xs font-semibold text-slate-700 mb-1">મોબાઈલ નંબર (Mobile) *</label>
+            <input type="tel" id="tenant-mobile" required placeholder="9876543210" class="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 bg-white">
+          </div>
+          <div>
+            <label for="tenant-property-id" class="block text-xs font-semibold text-slate-700 mb-1">પ્રોપર્ટી લિંક કરો *</label>
+            <select id="tenant-property-id" required class="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 bg-white">
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label for="tenant-address" class="block text-xs font-semibold text-slate-700 mb-1">કાયમી સરનામું (Permanent Address) *</label>
+          <textarea id="tenant-address" required rows="2" placeholder="મૂળ વતન / કાયમી સરનામું..." class="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 bg-white"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label for="tenant-rent" class="block text-xs font-semibold text-slate-700 mb-1">માસિક ભાડું (Monthly Rent ₹) *</label>
+            <input type="number" id="tenant-rent" required min="0" placeholder="15000" class="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold">
+          </div>
+          <div>
+            <label for="tenant-deposit" class="block text-xs font-semibold text-slate-700 mb-1">ડિપોઝિટ (Deposit ₹)</label>
+            <input type="number" id="tenant-deposit" min="0" placeholder="30000" class="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 bg-white">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label for="tenant-start-date" class="block text-xs font-semibold text-slate-700 mb-1">ભાડે આપ્યા તારીખ (Start Date)</label>
+            <input type="date" id="tenant-start-date" class="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 bg-white">
+          </div>
+          <div>
+            <label for="tenant-id-proof" class="block text-xs font-semibold text-slate-700 mb-1">આધાર કાર્ડ / ID નંબર</label>
+            <input type="text" id="tenant-id-proof" placeholder="XXXX-XXXX-XXXX" class="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 bg-white">
+          </div>
+        </div>
+
+        <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm transition">
+          ભાડુઆત સેવ કરો
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: View Tenant Full Profile Card -->
+  <div id="modal-view-tenant" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 class="text-base font-bold text-slate-800">ભાડુઆત પ્રોફાઇલ કાર્ડ</h3>
+        <button id="btn-close-view-tenant" class="text-slate-400 hover:text-slate-600 text-lg font-bold p-1">✕</button>
+      </div>
+
+      <div class="text-center space-y-2">
+        <div id="view-tenant-avatar" class="w-24 h-24 rounded-full mx-auto bg-indigo-100 border-4 border-indigo-500 overflow-hidden flex items-center justify-center text-4xl shadow-md">
+          👤
+        </div>
+        <div>
+          <h4 id="view-tenant-name" class="text-lg font-bold text-slate-900">સંજયભાઈ પટેલ</h4>
+          <p id="view-tenant-property" class="text-xs text-indigo-600 font-semibold">શિવમ એપાર્ટમેન્ટ ૩૦૨</p>
+        </div>
+      </div>
+
+      <div class="space-y-2.5 text-xs bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+        <div class="flex justify-between items-center py-1 border-b border-slate-200/60">
+          <span class="text-slate-500">મોબાઈલ નંબર:</span>
+          <span id="view-tenant-mobile" class="font-bold text-slate-800">9876543210</span>
+        </div>
+        <div class="flex justify-between items-center py-1 border-b border-slate-200/60">
+          <span class="text-slate-500">માસિક ભાડું:</span>
+          <span id="view-tenant-rent" class="font-bold text-emerald-600">₹૧૫,૦૦૦</span>
+        </div>
+        <div class="flex justify-between items-center py-1 border-b border-slate-200/60">
+          <span class="text-slate-500">ડિપોઝિટ રકમ:</span>
+          <span id="view-tenant-deposit" class="font-bold text-slate-800">₹૩૦,૦૦૦</span>
+        </div>
+        <div class="flex justify-between items-center py-1 border-b border-slate-200/60">
+          <span class="text-slate-500">શરૂઆત તારીખ:</span>
+          <span id="view-tenant-start-date" class="font-bold text-slate-800">01/01/2026</span>
+        </div>
+        <div class="flex justify-between items-center py-1 border-b border-slate-200/60">
+          <span class="text-slate-500">આધાર / ID:</span>
+          <span id="view-tenant-id-proof" class="font-bold text-slate-800">-</span>
+        </div>
+        <div class="pt-1">
+          <span class="text-slate-500 block mb-0.5">કાયમી સરનામું:</span>
+          <p id="view-tenant-address" class="text-slate-700 font-medium leading-relaxed bg-white p-2 rounded border border-slate-200">-</p>
+        </div>
+      </div>
+
+      <!-- Call & WhatsApp Action Buttons -->
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <a id="btn-view-call" href="#" class="py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
+          <span>📞</span> કોલ કરો
+        </a>
+        <a id="btn-view-whatsapp" href="#" target="_blank" class="py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
+          <span>💬</span> WhatsApp
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Confirm Delete Property (કન્ફર્મ ડિલીટ ડાયલોગ) -->
+  <div id="modal-confirm-delete-property" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4 text-center">
+      <div class="w-14 h-14 mx-auto rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-2xl font-bold">
+        🗑️
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-slate-900">પ્રોપર્ટી ડિલીટ કરવી છે?</h3>
+        <p id="confirm-delete-prop-desc" class="text-xs text-slate-500 mt-1 leading-relaxed">
+          શું તમે ખરેખર આ પ્રોપર્ટી ડિલીટ કરવા માંગો છો?
+        </p>
+        <p id="confirm-delete-prop-warning" class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 mt-2 hidden">
+          ⚠️ આ પ્રોપર્ટી સાથે જોડાયેલ ભાડુઆત પણ રિમૂવ થઈ જશે.
+        </p>
+      </div>
+      <input type="hidden" id="delete-target-prop-id" value="">
+      <div class="grid grid-cols-2 gap-2 pt-2">
+        <button type="button" id="btn-cancel-delete-prop" class="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition">
+          રદ કરો (Cancel)
+        </button>
+        <button type="button" id="btn-confirm-delete-prop" class="py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-sm">
+          હા, ડિલીટ કરો
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Rent Receipt (ભાડા રસીદ v2.0) -->
+  <div id="modal-receipt" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-1.5">
+          <span>🧾</span> ભાડા ચુકવણી રસીદ (Rent Receipt)
+        </h3>
+        <button id="btn-close-receipt" class="text-slate-400 hover:text-slate-600 text-lg font-bold p-1">✕</button>
+      </div>
+
+      <div id="receipt-print-area" class="border-2 border-dashed border-indigo-200 rounded-xl p-4 bg-indigo-50/30 space-y-3 text-xs">
+        <div class="text-center border-b border-indigo-100 pb-2">
+          <p class="text-sm font-bold text-indigo-800">🏢 ભાડા વ્યવસ્થાપક - ઓફિશિયલ રસીદ</p>
+          <p id="receipt-id-date" class="text-[11px] text-slate-500 mt-0.5">રસીદ નં: #TX-101 | તારીખ: 02/11/2026</p>
+        </div>
+        <div class="space-y-1.5">
+          <div class="flex justify-between">
+            <span class="text-slate-500">પ્રોપર્ટી:</span>
+            <span id="receipt-prop" class="font-bold text-slate-800">-</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">ભાડુઆતનું નામ:</span>
+            <span id="receipt-tenant" class="font-bold text-slate-800">-</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">ભાડાનો મહિનો:</span>
+            <span id="receipt-month" class="font-bold text-indigo-700">-</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">ચુકવણી માધ્યમ:</span>
+            <span id="receipt-mode" class="font-semibold text-slate-700">-</span>
+          </div>
+          <div class="flex justify-between pt-2 border-t border-indigo-100 text-sm">
+            <span class="font-bold text-slate-700">મળેલ કુલ રકમ:</span>
+            <span id="receipt-amount" class="font-extrabold text-emerald-600">₹૦</span>
+          </div>
+          <div class="flex justify-between text-[11px] text-slate-500 pt-1">
+            <span id="receipt-split-info">પાર્ટનર ભાગલા: -</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <button id="btn-print-receipt" type="button" class="py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
+          <span>🖨️</span> પ્રિન્ટ / PDF
+        </button>
+        <a id="btn-whatsapp-receipt" href="#" target="_blank" class="py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
+          <span>💬</span> WhatsApp રસીદ
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION LOGIC -->
+  <script src="app.js"></script>
+</body>
+</html>
